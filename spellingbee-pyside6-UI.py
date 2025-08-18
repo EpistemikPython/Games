@@ -2,7 +2,7 @@
 # coding=utf-8
 #
 # pyside6-UI.py
-#   -- access the Google Sheet update functions using a UI built with the PySide6 Qt library
+#   -- 
 #
 # Copyright (c) 2025 Mark Sattolo <epistemik@gmail.com>
 
@@ -17,21 +17,13 @@ from PySide6.QtWidgets import (QApplication, QComboBox, QVBoxLayout, QGroupBox, 
                                QPushButton, QFormLayout, QDialogButtonBox, QTextEdit, QInputDialog, QMessageBox)
 from functools import partial
 path.append("/home/marksa/git/Python/utils")
-from updateBudget import *
-from updateRevExps import update_rev_exps_main
-from updateAssets import update_assets_main
-from updateBalance import update_balance_main
+from sys import path, argv
+from abc import ABC, abstractmethod
+from argparse import ArgumentParser
+path.append("/home/marksa/git/Python/utils")
+from mhsUtils import *
+from mhsLogging import *
 
-TIMEFRAME:str = "Time Frame"
-UPDATE_DOMAINS = [CURRENT_YRS, RECENT_YRS, MID_YRS, EARLY_YRS, ALL_YEARS] + [year for year in UPDATE_YEARS]
-UPDATE_FXNS = [update_rev_exps_main, update_assets_main, update_balance_main]
-FXNS_TABLE = {
-    BAL+' & '+ASSET+'s' : UPDATE_FXNS[1:] ,
-    ALL                 : UPDATE_FXNS ,
-    BAL                 : UPDATE_FXNS[2] ,
-    ASSET+'s'           : UPDATE_FXNS[1] ,
-    "Rev & Exps"        : UPDATE_FXNS[0]
-}
 UI_DEFAULT_LOG_LEVEL:int = logging.INFO
 
 
