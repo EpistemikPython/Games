@@ -13,7 +13,7 @@ __created__ = "2025-08-18"
 __updated__ = "2025-08-18"
 
 from PySide6.QtWidgets import (QApplication, QComboBox, QVBoxLayout, QGroupBox, QDialog, QFileDialog, QLabel, QCheckBox,
-                               QPushButton, QFormLayout, QDialogButtonBox, QTextEdit, QInputDialog, QMessageBox)
+                               QPushButton, QFormLayout, QDialogButtonBox, QTextEdit, QInputDialog, QMessageBox, QHBoxLayout)
 from functools import partial
 from spellingbeeGameEngine import *
 
@@ -21,11 +21,11 @@ UI_DEFAULT_LOG_LEVEL:int = logging.INFO
 
 
 # noinspection PyAttributeOutsideInit
-class UpdateBudgetUI(QDialog):
-    """UI for updating my 'Budget Quarterly' Google sheet with information from a Gnucash file."""
+class SpellingBeeUI(QDialog):
+    """UI to play the SpellingBee game."""
     def __init__(self):
         super().__init__()
-        self.title = "Update Budget UI"
+        self.title = "SpellingBee UI"
         self.left = 20
         self.top  = 120
         self.width  = 620
@@ -58,57 +58,44 @@ class UpdateBudgetUI(QDialog):
 
     def create_group_box(self):
         self.gb_main = QGroupBox("Parameters:")
-        layout = QFormLayout()
+        gb_layout = QFormLayout()
 
-        self.cb_script = QComboBox()
-        self.cb_script.addItems( list(FXNS_TABLE.keys()) )
-        layout.addRow(QLabel("Script:"), self.cb_script)
+        self.id_response_box = QInputDialog()
+        self.te_response_box = QTextEdit("Response")
+        response_row = QHBoxLayout()
+        response_row.addWidget(QLabel("Response:"))
+        response_row.addWidget(self.id_response_box)
+        response_row.addWidget(self.te_response_box)
+        gb_layout.addRow(response_row)
 
-        self.gnc_file_btn = QPushButton("Get Gnucash file")
-        self.gnc_file_btn.clicked.connect(self.open_file_name_dialog)
-        layout.addRow(QLabel("Gnucash File:"), self.gnc_file_btn)
+        self.upper_left_letter = QLabel("UL")
+        self.upper_right_letter = QLabel("UR")
+        top_row = QHBoxLayout()
+        top_row.addWidget(self.upper_left_letter)
+        top_row.addWidget(self.upper_right_letter)
+        gb_layout.addRow(top_row)
 
-        self.cb_target = QComboBox()
-        self.cb_target.addItems([TEST, SHEET_1, SHEET_2])
-        self.cb_target.currentIndexChanged.connect(partial(self.selection_change, self.cb_target, TARGET))
-        layout.addRow(QLabel(TARGET+':'), self.cb_target)
+        self.central_left_letter = QLabel("CL")
+        self.central_right_letter = QLabel("CR")
+        self.centre_letter = QLabel("!*!")
+        middle_row = QHBoxLayout()
+        middle_row.addWidget(self.central_left_letter)
+        middle_row.addWidget(self.centre_letter)
+        middle_row.addWidget(self.central_right_letter)
+        gb_layout.addRow(middle_row)
 
-        self.cb_domain = QComboBox()
-        self.cb_domain.addItems(UPDATE_DOMAINS)
-        self.cb_domain.currentIndexChanged.connect(partial(self.selection_change, self.cb_domain, TIMEFRAME))
-        layout.addRow(QLabel(TIMEFRAME+':'), self.cb_domain)
-
-        vert_box = QGroupBox("Check:")
-        vert_layout = QVBoxLayout()
-        self.ch_gnc = QCheckBox("Save Gnucash info to JSON file?")
-        self.ch_ggl = QCheckBox("Save Google info to JSON file?")
-        self.ch_rsp = QCheckBox("Save Google RESPONSE to JSON file?")
-
-        vert_layout.addWidget(self.ch_gnc)
-        vert_layout.addWidget(self.ch_ggl)
-        vert_layout.addWidget(self.ch_rsp)
-        vert_box.setLayout(vert_layout)
-        layout.addRow(QLabel("Options"), vert_box)
+        self.lower_left_letter = QLabel("LL")
+        self.lower_right_letter = QLabel("LR")
+        bottom_row = QHBoxLayout()
+        bottom_row.addWidget(self.lower_left_letter)
+        bottom_row.addWidget(self.lower_right_letter)
+        gb_layout.addRow(bottom_row)
 
         self.pb_logging = QPushButton("Change the logging level?")
         self.pb_logging.clicked.connect(self.get_log_level)
-        layout.addRow(QLabel("Logging"), self.pb_logging)
+        gb_layout.addRow(QLabel("Logging"), self.pb_logging)
 
-        self.exec_btn = QPushButton("Go!")
-        self.exec_btn.setStyleSheet("QPushButton {font-weight: bold; color: red; background-color: yellow;}")
-        self.exec_btn.clicked.connect(self.button_click)
-        layout.addRow(QLabel("EXECUTE:"), self.exec_btn)
-
-        self.gb_main.setLayout(layout)
-
-    def open_file_name_dialog(self):
-        file_name, _ = QFileDialog.getOpenFileName( self, "Get Gnucash Files", osp.join(BASE_GNUCASH_FOLDER, "bak-files" + osp.sep),
-                                                    "Gnucash Files (*.gnc *.gnucash);;All Files (*)",
-                                                    options = QFileDialog.Option.DontUseNativeDialog )
-        if file_name:
-            self.gnc_file = file_name
-            gnc_file_display = get_filename(file_name)
-            self.gnc_file_btn.setText(gnc_file_display)
+        self.gb_main.setLayout(gb_layout)
 
     def get_log_level(self):
         num, ok = QInputDialog.getInt(self, "Logging Level", "Enter a value (0-60)",
@@ -120,55 +107,17 @@ class UpdateBudgetUI(QDialog):
     # ? 'partial' always passes the index of the chosen label as an extra param...!
     def selection_change(self, cb:QComboBox, label:str, indx:int):
         self._lgr.debug(f"ComboBox '{label}' selection changed to: {cb.currentText()} [{indx}].")
-
-    def button_click(self):
-        """Assemble the necessary parameters and call each selected update choice separately."""
-        self._lgr.info(f"Clicked '{self.exec_btn.text()}'.")
-        if not self.gnc_file:
-            msg_box = QMessageBox()
-            msg_box.setIcon(QMessageBox.Icon.Warning)
-            msg_box.setText("MUST select a Gnucash file!")
-            msg_box.exec()
-            return
-
-        cl_params = [ '-g' + self.gnc_file, '-m' + self.cb_target.currentText(), '-t' + self.cb_domain.currentText(),
-                      '-l' + str(self.selected_loglevel) ]
-        if self.ch_ggl.isChecked(): cl_params.append("--ggl_save")
-        if self.ch_gnc.isChecked(): cl_params.append("--gnc_save")
-        if self.ch_rsp.isChecked(): cl_params.append("--resp_save")
-        self._lgr.info(f"parameters = {repr(cl_params)}")
-
-        exe = self.cb_script.currentText()
-        self._lgr.info(f"updates to run = '{exe}'")
-        main_run = FXNS_TABLE[exe]
-        if callable(main_run):
-            self._lgr.info(f"Calling {exe}...")
-            response = main_run(cl_params)
-            self.response_box.append(json.dumps({f"{main_run}\n":response}, indent = 4))
-        elif isinstance(main_run, list):
-            try:
-                for bc_exec in main_run:
-                    self._lgr.info(f"Calling '{repr(bc_exec)}' ...")
-                    response = bc_exec(cl_params)
-                    self.response_box.append(json.dumps({f"{bc_exec}\n":response}, indent = 4))
-            except Exception as bcex:
-                self.response_box.append(f"EXCEPTION:\n{repr(bcex)}")
-                raise bcex
-        else:
-            msg = f"Problem with functions??!! '{exe}'"
-            self._lgr.error(msg)
-            self.response_box.append(msg)
-# END class UpdateBudgetUI
+# END class SpellingBeeUI
 
 
 if __name__ == "__main__":
-    log_control = MhsLogger( UpdateBudgetUI.__name__, con_level = UI_DEFAULT_LOG_LEVEL, suffix = DEFAULT_LOG_SUFFIX )
+    log_control = MhsLogger(SpellingBeeUI.__name__, con_level = UI_DEFAULT_LOG_LEVEL)
     dialog = None
     app = None
     code = 0
     try:
         app = QApplication(argv)
-        dialog = UpdateBudgetUI()
+        dialog = SpellingBeeUI()
         dialog.show()
         app.exec()
     except KeyboardInterrupt as mki:
