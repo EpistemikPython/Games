@@ -12,12 +12,18 @@ __python_version__ = "3.10+"
 __created__ = "2025-08-18"
 __updated__ = "2025-08-18"
 
-from PySide6.QtWidgets import (QApplication, QComboBox, QVBoxLayout, QGroupBox, QDialog, QFileDialog, QLabel, QCheckBox,
-                               QPushButton, QFormLayout, QDialogButtonBox, QTextEdit, QInputDialog, QMessageBox, QHBoxLayout)
+from PySide6 import QtCore
+from PySide6.QtWidgets import (QApplication, QComboBox, QVBoxLayout, QGroupBox, QDialog, QLabel, QCheckBox,
+                               QPushButton, QFormLayout, QDialogButtonBox, QTextEdit, QMessageBox, QHBoxLayout, QFrame)
 from functools import partial
 from spellingbeeGameEngine import *
 
 UI_DEFAULT_LOG_LEVEL:int = logging.INFO
+
+def set_label_style(qlabel:QLabel):
+    qlabel.setStyleSheet("font-weight: bold; font-size: 36pt")
+    qlabel.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
+    qlabel.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignHCenter)
 
 
 # noinspection PyAttributeOutsideInit
@@ -26,9 +32,9 @@ class SpellingBeeUI(QDialog):
     def __init__(self):
         super().__init__()
         self.title = "SpellingBee UI"
-        self.left = 20
+        self.left = 320
         self.top  = 120
-        self.width  = 620
+        self.width  = 480
         self.height = 800
         self.gnc_file = ""
 
@@ -60,24 +66,27 @@ class SpellingBeeUI(QDialog):
         self.gb_main = QGroupBox("Parameters:")
         gb_layout = QFormLayout()
 
-        self.id_response_box = QInputDialog()
-        self.te_response_box = QTextEdit("Response")
-        response_row = QHBoxLayout()
-        response_row.addWidget(QLabel("Response:"))
-        response_row.addWidget(self.id_response_box)
-        response_row.addWidget(self.te_response_box)
-        gb_layout.addRow(response_row)
+        self.cb_response_box = QComboBox()
+        self.cb_response_box.setEditable(True)
+        self.cb_response_box.setFrame(True)
+        self.cb_response_box.setItemText(0,"Response")
+        gb_layout.addRow(QLabel("Response: "), self.cb_response_box)
 
         self.upper_left_letter = QLabel("UL")
+        set_label_style(self.upper_left_letter)
         self.upper_right_letter = QLabel("UR")
+        set_label_style(self.upper_right_letter)
         top_row = QHBoxLayout()
         top_row.addWidget(self.upper_left_letter)
         top_row.addWidget(self.upper_right_letter)
         gb_layout.addRow(top_row)
 
-        self.central_left_letter = QLabel("CL")
-        self.central_right_letter = QLabel("CR")
         self.centre_letter = QLabel("!*!")
+        set_label_style(self.centre_letter)
+        self.central_left_letter = QLabel("CL")
+        set_label_style(self.central_left_letter)
+        self.central_right_letter = QLabel("CR")
+        set_label_style(self.central_right_letter)
         middle_row = QHBoxLayout()
         middle_row.addWidget(self.central_left_letter)
         middle_row.addWidget(self.centre_letter)
@@ -85,24 +94,15 @@ class SpellingBeeUI(QDialog):
         gb_layout.addRow(middle_row)
 
         self.lower_left_letter = QLabel("LL")
+        set_label_style(self.lower_left_letter)
         self.lower_right_letter = QLabel("LR")
+        set_label_style(self.lower_right_letter)
         bottom_row = QHBoxLayout()
         bottom_row.addWidget(self.lower_left_letter)
         bottom_row.addWidget(self.lower_right_letter)
         gb_layout.addRow(bottom_row)
 
-        self.pb_logging = QPushButton("Change the logging level?")
-        self.pb_logging.clicked.connect(self.get_log_level)
-        gb_layout.addRow(QLabel("Logging"), self.pb_logging)
-
         self.gb_main.setLayout(gb_layout)
-
-    def get_log_level(self):
-        num, ok = QInputDialog.getInt(self, "Logging Level", "Enter a value (0-60)",
-                                      value=self.selected_loglevel, minValue=0, maxValue=60)
-        if ok:
-            self.selected_loglevel = num
-            self._lgr.debug(f"logging level changed to {num}.")
 
     # ? 'partial' always passes the index of the chosen label as an extra param...!
     def selection_change(self, cb:QComboBox, label:str, indx:int):
