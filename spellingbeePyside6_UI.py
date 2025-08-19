@@ -10,18 +10,17 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-08-18"
+__updated__ = "2025-08-19"
 
 from PySide6 import QtCore
-from PySide6.QtWidgets import (QApplication, QComboBox, QVBoxLayout, QGroupBox, QDialog, QLabel, QCheckBox,
-                               QPushButton, QFormLayout, QDialogButtonBox, QTextEdit, QMessageBox, QHBoxLayout, QFrame, QLineEdit)
-from functools import partial
+from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QDialog, QLabel, QFormLayout,
+                               QTextEdit, QHBoxLayout, QFrame, QLineEdit)
 from spellingbeeGameEngine import *
 
 UI_DEFAULT_LOG_LEVEL:int = logging.INFO
 
 def set_label_style(qlabel:QLabel):
-    qlabel.setStyleSheet("font-weight: bold; color: blue; font-size: 32pt")
+    qlabel.setStyleSheet("font-weight: bold; color: blue; background: white; font-size: 32pt")
     qlabel.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Sunken)
     qlabel.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignHCenter)
 
@@ -46,10 +45,18 @@ class SpellingBeeUI(QDialog):
         self.selected_loglevel = UI_DEFAULT_LOG_LEVEL
         self.create_group_box()
 
-        self.response_box = QTextEdit()
-        self.response_box.setReadOnly(True)
-        self.response_box.acceptRichText()
-        self.response_box.setText("Valid responses:")
+        valid_label = QLabel("Valid responses:")
+        valid_label.setStyleSheet("font-weight: bold; color: green")
+        self.valid_response_box = QTextEdit()
+        self.valid_response_box.setReadOnly(True)
+        self.valid_response_box.acceptRichText()
+
+        invalid_label = QLabel("INVALID responses:")
+        invalid_label.setStyleSheet("font-weight: bold; color: red")
+        self.invalid_response_box = QTextEdit()
+        self.invalid_response_box.setReadOnly(True)
+        self.invalid_response_box.acceptRichText()
+        # self.invalid_response_box.setText(" responses:")
 
         # button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         # button_box.accepted.connect(self.accept)
@@ -57,7 +64,10 @@ class SpellingBeeUI(QDialog):
 
         layout = QVBoxLayout()
         layout.addWidget(self.gb_main)
-        layout.addWidget(self.response_box)
+        layout.addWidget(valid_label)
+        layout.addWidget(self.valid_response_box)
+        layout.addWidget(invalid_label)
+        layout.addWidget(self.invalid_response_box)
         # layout.addWidget(button_box)
         self.setLayout(layout)
 
@@ -67,10 +77,18 @@ class SpellingBeeUI(QDialog):
 
         self.le_response_box = QLineEdit()
         self.le_response_box.setFrame(True)
-        self.le_response_box.setStyleSheet("font-weight: italic; color: green; font-size: 24pt")
+        self.le_response_box.setStyleSheet("font-style: italic; font-size: 24pt")
+        self.le_response_box.setInputMask(">AAAAAAA")
+        self.le_response_box.setMaxLength(7)
         self.le_response_box.textEdited.connect(self.response_change)
         self.le_response_box.returnPressed.connect(self.accept_response)
         gb_layout.addRow(QLabel("Try: "), self.le_response_box)
+
+        self.le_message_box = QLineEdit()
+        self.le_message_box.setFrame(True)
+        self.le_message_box.setReadOnly(True)
+        self.le_message_box.setStyleSheet("font-size: 24pt")
+        gb_layout.addRow(QLabel("Message: "), self.le_message_box)
 
         self.upper_left_letter = QLabel("UL")
         set_label_style(self.upper_left_letter)
@@ -82,7 +100,7 @@ class SpellingBeeUI(QDialog):
         gb_layout.addRow(top_row)
 
         self.centre_letter = QLabel("X")
-        self.centre_letter.setStyleSheet("font-weight: bold; color: red; font-size: 42pt")
+        self.centre_letter.setStyleSheet("font-weight: bold; color: purple; background: yellow; font-size: 42pt")
         self.centre_letter.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
         self.centre_letter.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignHCenter)
         self.central_left_letter = QLabel("CL")
