@@ -14,15 +14,15 @@ __updated__ = "2025-08-18"
 
 from PySide6 import QtCore
 from PySide6.QtWidgets import (QApplication, QComboBox, QVBoxLayout, QGroupBox, QDialog, QLabel, QCheckBox,
-                               QPushButton, QFormLayout, QDialogButtonBox, QTextEdit, QMessageBox, QHBoxLayout, QFrame)
+                               QPushButton, QFormLayout, QDialogButtonBox, QTextEdit, QMessageBox, QHBoxLayout, QFrame, QLineEdit)
 from functools import partial
 from spellingbeeGameEngine import *
 
 UI_DEFAULT_LOG_LEVEL:int = logging.INFO
 
 def set_label_style(qlabel:QLabel):
-    qlabel.setStyleSheet("font-weight: bold; font-size: 36pt")
-    qlabel.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
+    qlabel.setStyleSheet("font-weight: bold; color: blue; font-size: 32pt")
+    qlabel.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Sunken)
     qlabel.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignHCenter)
 
 
@@ -36,7 +36,6 @@ class SpellingBeeUI(QDialog):
         self.top  = 120
         self.width  = 480
         self.height = 800
-        self.gnc_file = ""
 
         self._lgr = log_control.get_logger()
         self._lgr.log(UI_DEFAULT_LOG_LEVEL, f"{self.title} runtime = {get_current_time()}" )
@@ -50,27 +49,28 @@ class SpellingBeeUI(QDialog):
         self.response_box = QTextEdit()
         self.response_box.setReadOnly(True)
         self.response_box.acceptRichText()
-        self.response_box.setText("Hello there!")
+        self.response_box.setText("Valid responses:")
 
-        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
+        # button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        # button_box.accepted.connect(self.accept)
+        # button_box.rejected.connect(self.reject)
 
         layout = QVBoxLayout()
         layout.addWidget(self.gb_main)
         layout.addWidget(self.response_box)
-        layout.addWidget(button_box)
+        # layout.addWidget(button_box)
         self.setLayout(layout)
 
     def create_group_box(self):
-        self.gb_main = QGroupBox("Parameters:")
+        self.gb_main = QGroupBox("SpellingBee!")
         gb_layout = QFormLayout()
 
-        self.cb_response_box = QComboBox()
-        self.cb_response_box.setEditable(True)
-        self.cb_response_box.setFrame(True)
-        self.cb_response_box.setItemText(0,"Response")
-        gb_layout.addRow(QLabel("Response: "), self.cb_response_box)
+        self.le_response_box = QLineEdit()
+        self.le_response_box.setFrame(True)
+        self.le_response_box.setStyleSheet("font-weight: italic; color: green; font-size: 24pt")
+        self.le_response_box.textEdited.connect(self.response_change)
+        self.le_response_box.returnPressed.connect(self.accept_response)
+        gb_layout.addRow(QLabel("Try: "), self.le_response_box)
 
         self.upper_left_letter = QLabel("UL")
         set_label_style(self.upper_left_letter)
@@ -81,8 +81,10 @@ class SpellingBeeUI(QDialog):
         top_row.addWidget(self.upper_right_letter)
         gb_layout.addRow(top_row)
 
-        self.centre_letter = QLabel("!*!")
-        set_label_style(self.centre_letter)
+        self.centre_letter = QLabel("X")
+        self.centre_letter.setStyleSheet("font-weight: bold; color: red; font-size: 42pt")
+        self.centre_letter.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
+        self.centre_letter.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignHCenter)
         self.central_left_letter = QLabel("CL")
         set_label_style(self.central_left_letter)
         self.central_right_letter = QLabel("CR")
@@ -104,9 +106,12 @@ class SpellingBeeUI(QDialog):
 
         self.gb_main.setLayout(gb_layout)
 
-    # ? 'partial' always passes the index of the chosen label as an extra param...!
-    def selection_change(self, cb:QComboBox, label:str, indx:int):
-        self._lgr.debug(f"ComboBox '{label}' selection changed to: {cb.currentText()} [{indx}].")
+    def response_change(self, resp:str):
+        self._lgr.info(f"Response changed to: '{resp}'")
+
+    def accept_response(self):
+        self._lgr.info(f"Current response is: '{self.le_response_box.text()}'")
+
 # END class SpellingBeeUI
 
 
