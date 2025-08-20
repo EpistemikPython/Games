@@ -15,11 +15,14 @@ __updated__ = "2025-08-19"
 from PySide6 import QtCore
 from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QDialog, QLabel, QFormLayout,
                                QTextEdit, QHBoxLayout, QFrame, QLineEdit)
+
+import spellingbeeGameEngine
 from spellingbeeGameEngine import *
 
 UI_DEFAULT_LOG_LEVEL:int = logging.INFO
+# INPUT_MASK = ">AAAAAAAAAAAAAAAAAAAAA"
 
-def set_label_style(qlabel:QLabel):
+def set_letter_label_style(qlabel:QLabel):
     qlabel.setStyleSheet("font-weight: bold; color: blue; background: white; font-size: 32pt")
     qlabel.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Sunken)
     qlabel.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignHCenter)
@@ -33,8 +36,9 @@ class SpellingBeeUI(QDialog):
         self.title = "SpellingBee UI"
         self.left = 320
         self.top  = 120
-        self.width  = 480
+        self.width  = 520
         self.height = 800
+        self.ge = spellingbeeGameEngine.GameEngine()
 
         self._lgr = log_control.get_logger()
         self._lgr.log(UI_DEFAULT_LOG_LEVEL, f"{self.title} runtime = {get_current_time()}" )
@@ -45,6 +49,7 @@ class SpellingBeeUI(QDialog):
         self.selected_loglevel = UI_DEFAULT_LOG_LEVEL
         self.create_group_box()
 
+        self.current_response = ""
         valid_label = QLabel("Valid responses:")
         valid_label.setStyleSheet("font-weight: bold; color: green")
         self.valid_response_box = QTextEdit()
@@ -78,10 +83,11 @@ class SpellingBeeUI(QDialog):
         self.le_response_box = QLineEdit()
         self.le_response_box.setFrame(True)
         self.le_response_box.setStyleSheet("font-style: italic; font-size: 24pt")
-        self.le_response_box.setInputMask(">AAAAAAA")
-        self.le_response_box.setMaxLength(7)
+        # accept up to 21 CAPITAL LETTERS
+        # self.le_response_box.setInputMask(INPUT_MASK)
+        self.le_response_box.setMaxLength(MAX_WORD_LENGTH)
         self.le_response_box.textEdited.connect(self.response_change)
-        self.le_response_box.returnPressed.connect(self.accept_response)
+        self.le_response_box.returnPressed.connect(self.process_response)
         gb_layout.addRow(QLabel("Try: "), self.le_response_box)
 
         self.le_message_box = QLineEdit()
@@ -90,33 +96,33 @@ class SpellingBeeUI(QDialog):
         self.le_message_box.setStyleSheet("font-size: 24pt")
         gb_layout.addRow(QLabel("Message: "), self.le_message_box)
 
-        self.upper_left_letter = QLabel("UL")
-        set_label_style(self.upper_left_letter)
-        self.upper_right_letter = QLabel("UR")
-        set_label_style(self.upper_right_letter)
+        self.upper_left_letter = QLabel("U")
+        set_letter_label_style(self.upper_left_letter)
+        self.upper_right_letter = QLabel("R")
+        set_letter_label_style(self.upper_right_letter)
         top_row = QHBoxLayout()
         top_row.addWidget(self.upper_left_letter)
         top_row.addWidget(self.upper_right_letter)
         gb_layout.addRow(top_row)
 
-        self.centre_letter = QLabel("X")
-        self.centre_letter.setStyleSheet("font-weight: bold; color: purple; background: yellow; font-size: 42pt")
-        self.centre_letter.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
-        self.centre_letter.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignHCenter)
-        self.central_left_letter = QLabel("CL")
-        set_label_style(self.central_left_letter)
-        self.central_right_letter = QLabel("CR")
-        set_label_style(self.central_right_letter)
+        self.required_letter = QLabel("X")
+        self.required_letter.setStyleSheet("font-weight: bold; color: purple; background: yellow; font-size: 42pt")
+        self.required_letter.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
+        self.required_letter.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignHCenter)
+        self.central_left_letter = QLabel("L")
+        set_letter_label_style(self.central_left_letter)
+        self.central_right_letter = QLabel("M")
+        set_letter_label_style(self.central_right_letter)
         middle_row = QHBoxLayout()
         middle_row.addWidget(self.central_left_letter)
-        middle_row.addWidget(self.centre_letter)
+        middle_row.addWidget(self.required_letter)
         middle_row.addWidget(self.central_right_letter)
         gb_layout.addRow(middle_row)
 
-        self.lower_left_letter = QLabel("LL")
-        set_label_style(self.lower_left_letter)
-        self.lower_right_letter = QLabel("LR")
-        set_label_style(self.lower_right_letter)
+        self.lower_left_letter = QLabel("D")
+        set_letter_label_style(self.lower_left_letter)
+        self.lower_right_letter = QLabel("A")
+        set_letter_label_style(self.lower_right_letter)
         bottom_row = QHBoxLayout()
         bottom_row.addWidget(self.lower_left_letter)
         bottom_row.addWidget(self.lower_right_letter)
@@ -124,11 +130,22 @@ class SpellingBeeUI(QDialog):
 
         self.gb_main.setLayout(gb_layout)
 
+    def scramble_letters(self):
+        pass
+
     def response_change(self, resp:str):
         self._lgr.info(f"Response changed to: '{resp}'")
+        previous_response = self.current_response
+        self.current_response = resp
+        if previous_response == resp:
+            # re-arrange the letters, i.e. just as when space bar pressed in original game
+            self.scramble_letters()
 
-    def accept_response(self):
+        self.le_response_box.setText(self.ge.format_response(resp))
+
+    def process_response(self):
         self._lgr.info(f"Current response is: '{self.le_response_box.text()}'")
+        # check the word and enter into valid or invalid response box
 
 # END class SpellingBeeUI
 

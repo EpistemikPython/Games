@@ -18,3 +18,35 @@ from argparse import ArgumentParser
 path.append("/home/marksa/git/Python/utils")
 from mhsUtils import *
 from mhsLogging import *
+
+REFERENCE_WORD_FILE = "/home/marksa/Documents/Words/reference_words.txt"
+MIN_WORD_LENGTH = 4
+MAX_WORD_LENGTH = 21
+
+
+class GameEngine:
+    def __init__(self):
+        self.required_letter = ''
+        self.surround_letters = ""
+        self.current_target = ""
+        self.last_guess = ""
+
+    def get_target_word(self):
+        pass
+    
+    def format_response(self, resp:str) -> str:
+        # remove non-letters, capitalize and return
+        formatted_string = ""
+        for c in resp:
+            if str.isalpha(c):
+                formatted_string += c.upper()
+        self.last_guess = formatted_string
+        return formatted_string.rstrip().lstrip()
+
+    def check_response(self, resp:str):
+        pass
+
+    def accept_response(self, resp:str):
+        pass
+
+# END class GameEngine
