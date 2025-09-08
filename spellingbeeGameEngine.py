@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-08-18"
+__updated__ = "2025-08-20"
 
 from sys import path, argv
 from abc import ABC, abstractmethod
@@ -19,7 +19,8 @@ path.append("/home/marksa/git/Python/utils")
 from mhsUtils import *
 from mhsLogging import *
 
-REFERENCE_WORD_FILE = "/home/marksa/Documents/Words/reference_words.txt"
+TARGET_WORD_FILE = "/home/marksa/Documents/Words/input/pangrams.py"
+REFERENCE_WORD_FILE = "/home/marksa/Documents/Words/input/spellbee_words.json"
 MIN_WORD_LENGTH = 4
 MAX_WORD_LENGTH = 21
 

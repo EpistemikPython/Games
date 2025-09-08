@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-08-19"
+__updated__ = "2025-08-20"
 
 from PySide6 import QtCore
 from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QDialog, QLabel, QFormLayout,
@@ -20,7 +20,6 @@ import spellingbeeGameEngine
 from spellingbeeGameEngine import *
 
 UI_DEFAULT_LOG_LEVEL:int = logging.INFO
-# INPUT_MASK = ">AAAAAAAAAAAAAAAAAAAAA"
 
 def set_letter_label_style(qlabel:QLabel):
     qlabel.setStyleSheet("font-weight: bold; color: blue; background: white; font-size: 32pt")
@@ -61,11 +60,6 @@ class SpellingBeeUI(QDialog):
         self.invalid_response_box = QTextEdit()
         self.invalid_response_box.setReadOnly(True)
         self.invalid_response_box.acceptRichText()
-        # self.invalid_response_box.setText(" responses:")
-
-        # button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
-        # button_box.accepted.connect(self.accept)
-        # button_box.rejected.connect(self.reject)
 
         layout = QVBoxLayout()
         layout.addWidget(self.gb_main)
@@ -73,7 +67,6 @@ class SpellingBeeUI(QDialog):
         layout.addWidget(self.valid_response_box)
         layout.addWidget(invalid_label)
         layout.addWidget(self.invalid_response_box)
-        # layout.addWidget(button_box)
         self.setLayout(layout)
 
     def create_group_box(self):
@@ -83,8 +76,6 @@ class SpellingBeeUI(QDialog):
         self.le_response_box = QLineEdit()
         self.le_response_box.setFrame(True)
         self.le_response_box.setStyleSheet("font-style: italic; font-size: 24pt")
-        # accept up to 21 CAPITAL LETTERS
-        # self.le_response_box.setInputMask(INPUT_MASK)
         self.le_response_box.setMaxLength(MAX_WORD_LENGTH)
         self.le_response_box.textEdited.connect(self.response_change)
         self.le_response_box.returnPressed.connect(self.process_response)
@@ -130,7 +121,12 @@ class SpellingBeeUI(QDialog):
 
         self.gb_main.setLayout(gb_layout)
 
+    def populate_letter_boxes(self):
+        """Take the required letter and surround letters and enter into the proper widgets."""
+        pass
+
     def scramble_letters(self):
+        """Re-mix the placement of the surround letters."""
         pass
 
     def response_change(self, resp:str):
@@ -144,8 +140,10 @@ class SpellingBeeUI(QDialog):
         self.le_response_box.setText(self.ge.format_response(resp))
 
     def process_response(self):
+        """'Enter' key was pressed so take the current response and check if it is a valid word."""
         self._lgr.info(f"Current response is: '{self.le_response_box.text()}'")
         # check the word and enter into valid or invalid response box
+        self.ge.check_response()
 
 # END class SpellingBeeUI
 
