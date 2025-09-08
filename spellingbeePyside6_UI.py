@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-08-20"
+__updated__ = "2025-09-08"
 
 from PySide6 import QtCore
 from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QDialog, QLabel, QFormLayout,
@@ -18,8 +18,6 @@ from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QDialog, QL
 
 import spellingbeeGameEngine
 from spellingbeeGameEngine import *
-
-UI_DEFAULT_LOG_LEVEL:int = logging.INFO
 
 def set_letter_label_style(qlabel:QLabel):
     qlabel.setStyleSheet("font-weight: bold; color: blue; background: white; font-size: 32pt")
@@ -40,12 +38,12 @@ class SpellingBeeUI(QDialog):
         self.ge = spellingbeeGameEngine.GameEngine()
 
         self._lgr = log_control.get_logger()
-        self._lgr.log(UI_DEFAULT_LOG_LEVEL, f"{self.title} runtime = {get_current_time()}" )
+        self._lgr.log(DEFAULT_LOG_LEVEL, f"{self.title} runtime = {get_current_time()}" )
 
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
 
-        self.selected_loglevel = UI_DEFAULT_LOG_LEVEL
+        self.selected_loglevel = DEFAULT_LOG_LEVEL
         self.create_group_box()
 
         self.current_response = ""
@@ -68,6 +66,9 @@ class SpellingBeeUI(QDialog):
         layout.addWidget(invalid_label)
         layout.addWidget(self.invalid_response_box)
         self.setLayout(layout)
+
+        self.ge.start_game()
+        self.populate_letter_boxes()
 
     def create_group_box(self):
         self.gb_main = QGroupBox("SpellingBee!")
@@ -96,17 +97,17 @@ class SpellingBeeUI(QDialog):
         top_row.addWidget(self.upper_right_letter)
         gb_layout.addRow(top_row)
 
-        self.required_letter = QLabel("X")
-        self.required_letter.setStyleSheet("font-weight: bold; color: purple; background: yellow; font-size: 42pt")
-        self.required_letter.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
-        self.required_letter.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignHCenter)
+        self.central_letter = QLabel("X")
+        self.central_letter.setStyleSheet("font-weight: bold; color: purple; background: yellow; font-size: 42pt")
+        self.central_letter.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
+        self.central_letter.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignHCenter)
         self.central_left_letter = QLabel("L")
         set_letter_label_style(self.central_left_letter)
         self.central_right_letter = QLabel("M")
         set_letter_label_style(self.central_right_letter)
         middle_row = QHBoxLayout()
         middle_row.addWidget(self.central_left_letter)
-        middle_row.addWidget(self.required_letter)
+        middle_row.addWidget(self.central_letter)
         middle_row.addWidget(self.central_right_letter)
         gb_layout.addRow(middle_row)
 
@@ -123,33 +124,52 @@ class SpellingBeeUI(QDialog):
 
     def populate_letter_boxes(self):
         """Take the required letter and surround letters and enter into the proper widgets."""
-        pass
+        self.central_letter.setText(self.ge.required_letter)
+        self.scramble_letters()
 
     def scramble_letters(self):
-        """Re-mix the placement of the surround letters."""
-        pass
+        """Change the placement of the surround letters."""
+        self._lgr.info("scramble_letters()")
+        picked = self.ge.surround_letters.copy()
+        next_lett = picked[random.randrange(0,6)]
+        self.upper_left_letter.setText(next_lett)
+        picked.remove(next_lett)
+        next_lett = picked[random.randrange(0,5)]
+        self.upper_right_letter.setText(next_lett)
+        picked.remove(next_lett)
+        next_lett = picked[random.randrange(0,4)]
+        self.central_left_letter.setText(next_lett)
+        picked.remove(next_lett)
+        next_lett = picked[random.randrange(0,3)]
+        self.central_right_letter.setText(next_lett)
+        picked.remove(next_lett)
+        next_lett = picked[0]
+        self.lower_left_letter.setText(next_lett)
+        picked.remove(next_lett)
+        next_lett = picked[0]
+        self.lower_right_letter.setText(next_lett)
 
     def response_change(self, resp:str):
         self._lgr.info(f"Response changed to: '{resp}'")
-        previous_response = self.current_response
-        self.current_response = resp
-        if previous_response == resp:
-            # re-arrange the letters, i.e. just as when space bar pressed in original game
+        if resp[-1] == " ":
+            # re-arrange the outer letters when space bar pressed
             self.scramble_letters()
 
-        self.le_response_box.setText(self.ge.format_response(resp))
+        self.current_response = self.ge.format_response(resp)
+        self.le_response_box.setText(self.current_response)
 
     def process_response(self):
         """'Enter' key was pressed so take the current response and check if it is a valid word."""
-        self._lgr.info(f"Current response is: '{self.le_response_box.text()}'")
+        entry = self.le_response_box.text()
+        self._lgr.info(f"Current response is: '{entry}'")
         # check the word and enter into valid or invalid response box
-        self.ge.check_response()
+        self.ge.check_response(entry)
 
 # END class SpellingBeeUI
 
 
 if __name__ == "__main__":
-    log_control = MhsLogger(SpellingBeeUI.__name__, con_level = UI_DEFAULT_LOG_LEVEL)
+    log_control = MhsLogger(SpellingBeeUI.__name__, con_level = DEFAULT_LOG_LEVEL)
     dialog = None
     app = None
     code = 0
