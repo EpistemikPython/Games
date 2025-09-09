@@ -10,12 +10,11 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-08"
+__updated__ = "2025-09-09"
 
 from PySide6 import QtCore
 from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QDialog, QLabel, QFormLayout,
                                QTextEdit, QHBoxLayout, QFrame, QLineEdit)
-
 import spellingbeeGameEngine
 from spellingbeeGameEngine import *
 
@@ -74,19 +73,34 @@ class SpellingBeeUI(QDialog):
         self.gb_main = QGroupBox("SpellingBee!")
         gb_layout = QFormLayout()
 
-        self.le_response_box = QLineEdit()
-        self.le_response_box.setFrame(True)
-        self.le_response_box.setStyleSheet("font-style: italic; font-size: 24pt")
-        self.le_response_box.setMaxLength(MAX_WORD_LENGTH)
-        self.le_response_box.textEdited.connect(self.response_change)
-        self.le_response_box.returnPressed.connect(self.process_response)
-        gb_layout.addRow(QLabel("Try: "), self.le_response_box)
+        self.response_box = QLineEdit()
+        self.response_box.setFrame(True)
+        self.response_box.setStyleSheet("font-style: italic; font-size: 24pt")
+        self.response_box.setMaxLength(MAX_WORD_LENGTH)
+        self.response_box.textEdited.connect(self.response_change)
+        self.response_box.returnPressed.connect(self.process_response)
+        gb_layout.addRow(QLabel("Try: "), self.response_box)
 
-        self.le_message_box = QLineEdit()
-        self.le_message_box.setFrame(True)
-        self.le_message_box.setReadOnly(True)
-        self.le_message_box.setStyleSheet("font-size: 24pt")
-        gb_layout.addRow(QLabel("Message: "), self.le_message_box)
+        self.message_box = QLineEdit()
+        self.message_box.setFrame(True)
+        self.message_box.setReadOnly(True)
+        self.message_box.setStyleSheet("font-size: 24pt")
+        gb_layout.addRow(QLabel("Message: "),self.message_box)
+
+        self.point_display = QLabel("000")
+        self.point_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: green")
+        self.divider = QLabel("/")
+        self.divider.setStyleSheet("font-weight: bold; font-size: 28pt")
+        self.total_display = QLabel("1000")
+        self.total_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: red")
+        self.point_label = QLabel("  points                      ")
+        self.point_label.setStyleSheet("font-size: 28pt")
+        points_row = QHBoxLayout()
+        points_row.addWidget(self.point_display)
+        points_row.addWidget(self.divider)
+        points_row.addWidget(self.total_display)
+        points_row.addWidget(self.point_label)
+        gb_layout.addRow(points_row)
 
         self.upper_left_letter = QLabel("U")
         set_letter_label_style(self.upper_left_letter)
@@ -151,19 +165,40 @@ class SpellingBeeUI(QDialog):
 
     def response_change(self, resp:str):
         self._lgr.info(f"Response changed to: '{resp}'")
-        if resp[-1] == " ":
-            # re-arrange the outer letters when space bar pressed
-            self.scramble_letters()
-
-        self.current_response = self.ge.format_response(resp)
-        self.le_response_box.setText(self.current_response)
+        if resp:
+            if resp[-1] == " ":
+                # re-arrange the outer letters when space bar pressed
+                self.scramble_letters()
+            self.message_box.setText("")
+            self.current_response = self.ge.format_response(resp)
+            self.response_box.setText(self.current_response)
 
     def process_response(self):
         """'Enter' key was pressed so take the current response and check if it is a valid word."""
-        entry = self.le_response_box.text()
-        self._lgr.info(f"Current response is: '{entry}'")
-        # check the word and enter into valid or invalid response box
-        self.ge.check_response(entry)
+        entry = self.response_box.text()
+        if entry and len(entry) >= MIN_WORD_LENGTH:
+            self._lgr.info(f"Current response is: '{entry}'")
+            # check the word and enter into valid or invalid response box
+            if entry in self.ge.good_guesses or entry in self.ge.bad_guesses:
+                self.message_box.setText("Already tried :(")
+                self.response_box.setText("")
+                return
+            if self.ge.check_response(entry):
+                if entry in self.ge.pangram_guesses:
+                    regular_font_weight = self.valid_response_box.fontWeight()
+                    self._lgr.info(f"current font weight = {regular_font_weight}")
+                    self.valid_response_box.setFontWeight(700)
+                    self.valid_response_box.setFontItalic(True)
+                    self.valid_response_box.append(entry)
+                    self.valid_response_box.setFontWeight(regular_font_weight)
+                    self.valid_response_box.setFontItalic(False)
+                else:
+                    self.valid_response_box.append(entry)
+            else:
+                self.invalid_response_box.append(entry)
+            self.response_box.setText("")
+            self.message_box.setText("Pangram!" if entry in self.ge.pangram_guesses else "")
+            self.point_display.setText(str(self.ge.point_total))
 
 # END class SpellingBeeUI
 
