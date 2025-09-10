@@ -10,13 +10,14 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-09"
+__updated__ = "2025-09-10"
 
 import random
 from sys import path, argv
 path.append("/home/marksa/git/Python/utils")
 from mhsUtils import *
 from mhsLogging import *
+from enum import Enum
 import pangrams
 import all_spellbee_words
 
@@ -24,6 +25,14 @@ TARGET_WORD_FILE = "/home/marksa/git/Python/Games/input/pangrams.json"
 REFERENCE_WORD_FILE = "/home/marksa/git/Python/Games/input/all_spellbee_words.json"
 MIN_WORD_LENGTH = 4
 MAX_WORD_LENGTH = 21
+PANGRAM_BONUS = 7
+
+class Level(Enum):
+    Beginning = 0.0
+    Good = 0.4
+    Great = 0.6
+    Genius = 0.8
+    Supreme = 1.0
 
 class GameEngine:
     def __init__(self):
@@ -42,6 +51,7 @@ class GameEngine:
         self.good_guesses = []
         self.bad_guesses = []
         self.point_total = 0
+        self.maximum_points = 100
 
     def start_game(self):
         self.current_target = self.all_pangrams[random.randrange(0, len(self.all_pangrams))]
@@ -72,7 +82,7 @@ class GameEngine:
             if self.check_pangram():
                 self._lgr.info(f"{self.current_guess} is a PANGRAM!")
                 self.pangram_guesses.append(self.current_guess)
-                self.point_total += 7
+                self.point_total += PANGRAM_BONUS
             return True
         self._lgr.info(f"{self.current_guess} is a BAD guess!")
         self.bad_guesses.append(self.current_guess)
@@ -99,9 +109,23 @@ class GameEngine:
                 return False
         return True
 
-    def accept_response(self, resp:str):
-        pass
+    def get_current_level(self) -> str:
+        current_point_percent = self.point_total / self.get_maximum_points()
+        if current_point_percent >= Level.Supreme.value:
+            return Level.Supreme.name
+        if current_point_percent >= Level.Genius.value:
+            return Level.Genius.name
+        if current_point_percent >= Level.Great.value:
+            return Level.Great.name
+        if current_point_percent >= Level.Good.value:
+            return Level.Good.name
+        return Level.Beginning.name
+
+    def get_maximum_points(self) -> int:
+        self.maximum_points = 100
+        return self.maximum_points
+
 # END class GameEngine
 
 
-log_control = MhsLogger(GameEngine.__name__, con_level = DEFAULT_LOG_LEVEL)
+log_control = MhsLogger(GameEngine.__name__, con_level = DEFAULT_LOG_LEVEL, con_format = FILE_FORMAT)
