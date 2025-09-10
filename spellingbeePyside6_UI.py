@@ -53,7 +53,8 @@ class SpellingBeeUI(QDialog):
         self.status_info.setStyleSheet("font-style: italic; font-size: 28pt; color: orange; background: cyan")
 
         self.current_response = ""
-        self.current_valid_line = "> "
+        self.valid_responses = ""
+        self.pangram_responses = "Pangrams:"
         valid_label = QLabel("Valid responses:")
         valid_label.setStyleSheet("font-weight: bold; color: green")
         self.valid_response_box = QTextEdit()
@@ -199,21 +200,22 @@ class SpellingBeeUI(QDialog):
             # check the word and enter into valid or invalid response box
             if self.ge.check_response(entry):
                 if entry in self.ge.pangram_guesses:
+                    self.pangram_responses = f"{self.pangram_responses}   {entry}"
+                else:
+                    self.valid_responses = f"{self.valid_responses}   {entry}"
+                if self.pangram_responses:
                     regular_font_weight = self.valid_response_box.fontWeight()
                     self._lgr.info(f"current font weight = {regular_font_weight}")
                     self.valid_response_box.setFontWeight(QtGui.QFont.Weight.Bold)
                     self.valid_response_box.setFontItalic(True)
-                    # self.valid_response_box.append(f"<b><i>{entry}</i></b>")
-                    entry = f"<b><i>&emsp;&emsp;{entry}&emsp;&emsp;</i></b>"
-                    # self.valid_response_box.setHtml(self.valid_response_box.toHtml() + entry)
+                    self.valid_response_box.setPlainText(self.pangram_responses)
                     self.valid_response_box.setFontWeight(regular_font_weight)
                     self.valid_response_box.setFontItalic(False)
                 # else:
-                self.current_valid_line = f"{self.current_valid_line}&nbsp;&nbsp;{entry}&nbsp;&nbsp;"
-                self.valid_response_box.setHtml(self.current_valid_line)
-                self._lgr.info(self.valid_response_box.toHtml())
+                self.valid_response_box.append("Regular:")
+                self.valid_response_box.append(self.valid_responses)
+                self._lgr.info(self.valid_response_box.toPlainText())
             else:
-                # self.invalid_response_box.append(entry)
                 self.invalid_response_box.setPlainText(self.invalid_response_box.toPlainText() + f"     {entry}")
             # clear the current response
             self.response_box.setText("")
