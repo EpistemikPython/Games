@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-10"
+__updated__ = "2025-09-11"
 
 from PySide6 import QtCore, QtGui
 from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QDialog, QLabel, QFormLayout,
@@ -50,7 +50,7 @@ class SpellingBeeUI(QDialog):
         self.setGeometry(self.left, self.top, self.width, self.height)
 
         self.status_info = QLabel(centred_string(Level.Beginning.name + " :)"))
-        self.status_info.setStyleSheet("font-style: italic; font-size: 28pt; color: orange; background: cyan")
+        self.status_info.setStyleSheet("font-weight: bold; font-style: italic; font-size: 28pt; color: orange; background: cyan")
 
         self.current_response = ""
         self.valid_responses = ""
@@ -59,15 +59,13 @@ class SpellingBeeUI(QDialog):
         valid_label.setStyleSheet("font-weight: bold; color: green")
         self.valid_response_box = QTextEdit()
         self.valid_response_box.setReadOnly(True)
-        self.valid_response_box.setAcceptRichText(True)
 
         invalid_label = QLabel("INVALID responses:")
         invalid_label.setStyleSheet("font-weight: bold; color: red")
         self.invalid_response_box = QTextEdit()
         self.invalid_response_box.setReadOnly(True)
-        # self.invalid_response_box.setAcceptRichText(True)
 
-        # buttons: instructions, status, exit
+        # buttons: instructions, exit
 
         self.create_game_box()
         layout = QVBoxLayout()
@@ -84,7 +82,6 @@ class SpellingBeeUI(QDialog):
 
     def create_game_box(self):
         self.gb_main = QGroupBox()
-        # self.gb_main.setStyleSheet("font-style: italic; font-size: 28pt")
         gb_layout = QFormLayout()
 
         self.response_box = QLineEdit()
@@ -98,7 +95,7 @@ class SpellingBeeUI(QDialog):
         self.message_box = QLineEdit()
         self.message_box.setFrame(True)
         self.message_box.setReadOnly(True)
-        self.message_box.setStyleSheet("font-size: 18pt")
+        self.message_box.setStyleSheet("font-size: 12pt; font-family: italic; color:red")
         gb_layout.addRow(QLabel("Message: "),self.message_box)
 
         self.point_display = QLabel("000")
@@ -109,6 +106,7 @@ class SpellingBeeUI(QDialog):
         self.total_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: purple")
         self.point_label = QLabel("  points                      ")
         self.point_label.setStyleSheet("font-size: 28pt")
+        # status button
         points_row = QHBoxLayout()
         points_row.addWidget(self.point_display)
         points_row.addWidget(self.divider)
@@ -194,7 +192,13 @@ class SpellingBeeUI(QDialog):
             self._lgr.info(f"Current response is: '{entry}'")
             # check if already tried
             if entry in self.ge.good_guesses or entry in self.ge.bad_guesses:
-                self.message_box.setText(f"Already tried '{entry}' :(")
+                self.message_box.setText(f"Already tried '{entry}' ;)")
+                self.response_box.setText("")
+                return
+            # ignore if simple plural or past
+            if ( (entry[-1] == 'S' and entry[:-1] in self.ge.all_words) or
+                    ( (entry[-2:] == "ES" or entry[-2:] == "ED") and entry[:-2] in self.ge.all_words) ):
+                self.message_box.setText(f"most Simple plurals or past are IGNORED :(")
                 self.response_box.setText("")
                 return
             # check the word and enter into valid or invalid response box
