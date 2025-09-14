@@ -10,6 +10,7 @@
 **/in
 **/out
 **/logs
+check_*
 /bindings
 **/examples
 **/*test*
