@@ -18,9 +18,9 @@ from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QDialog, QL
                                QTextEdit, QHBoxLayout, QFrame, QLineEdit)
 from spellingbeeGameEngine import *
 
-GUI_WIDTH  = 480
+GUI_WIDTH  = 572
 GUI_HEIGHT = 960
-LETTERS_WIDTH = GUI_WIDTH // 10
+LETTERS_WIDTH = GUI_WIDTH // 12
 
 def centred_string(p:str):
     return (" " * ((LETTERS_WIDTH-len(p)) // 2)) + p
@@ -79,8 +79,6 @@ class SpellingBeeUI(QDialog):
         layout.addWidget(self.invalid_response_box)
         self.setLayout(layout)
 
-        self.populate_letter_boxes()
-
     def create_game_box(self):
         self.gb_main = QGroupBox()
         gb_layout = QFormLayout()
@@ -96,7 +94,7 @@ class SpellingBeeUI(QDialog):
         self.message_box = QLineEdit()
         self.message_box.setFrame(True)
         self.message_box.setReadOnly(True)
-        self.message_box.setStyleSheet("font-size: 12pt; font-family: italic; color:red")
+        self.message_box.setStyleSheet("font-size: 14pt; font-family: italic; color:red")
         gb_layout.addRow(QLabel("Message: "),self.message_box)
 
         self.point_display = QLabel("000")
@@ -148,6 +146,7 @@ class SpellingBeeUI(QDialog):
         gb_layout.addRow(bottom_row)
 
         self.gb_main.setLayout(gb_layout)
+        self.populate_letter_boxes()
 
     def populate_letter_boxes(self):
         """Take the required letter and surround letters and enter into the proper widgets."""
@@ -183,7 +182,7 @@ class SpellingBeeUI(QDialog):
                 # re-arrange the outer letters when space bar pressed
                 self.scramble_letters()
             self.message_box.setText("")
-            self.current_response = self.ge.format_response(resp)
+            self.current_response = self.ge.format_guess(resp)
             self.response_box.setText(self.current_response)
 
     def process_response(self):
@@ -193,16 +192,17 @@ class SpellingBeeUI(QDialog):
             self._lgr.info(f"Current response is: '{entry}'")
             # check if already tried
             if entry in self.ge.good_guesses or entry in self.ge.bad_guesses:
-                self.message_box.setText(f"Already tried '{entry}' ;)")
+                self.message_box.setText(f" Already tried '{entry}' ;)")
                 self.response_box.setText("")
                 return
             # ignore if simple plural or past
             if self.ge.check_plural_past(entry):
-                self.message_box.setText(f"Most simple PLURALS or PAST are IGNORED :(")
+                self.message_box.setText("Most simple PLURALS or PAST are IGNORED :(")
+                self._lgr.info("Most simple PLURALS or PAST tense are IGNORED :(")
                 self.response_box.setText("")
                 return
             # check the word and enter into VALID or INVALID response box
-            if self.ge.check_response(entry):
+            if self.ge.check_guess(entry):
                 if entry in self.ge.pangram_guesses:
                     self.pangram_responses = f"{self.pangram_responses}   {entry}"
                 else:
@@ -216,7 +216,6 @@ class SpellingBeeUI(QDialog):
                     self.valid_response_box.setPlainText(self.pangram_responses)
                     self.valid_response_box.setFontWeight(regular_font_weight)
                     self.valid_response_box.setFontItalic(False)
-                # else:
                 self.valid_response_box.append("Regular:")
                 self.valid_response_box.append(self.valid_responses)
                 self._lgr.debug(self.valid_response_box.toPlainText())
@@ -225,15 +224,16 @@ class SpellingBeeUI(QDialog):
             # clear the current response
             self.response_box.setText("")
             # send a message if necessary
-            self.message_box.setText("Pangram!" if entry in self.ge.pangram_guesses else "")
+            self.message_box.setText(" Pangram!" if entry in self.ge.pangram_guesses else "")
             if self.ge.required_letter not in entry:
-                self.message_box.setText("Missing Centre letter!")
+                self.message_box.setText(" Missing Centre letter!")
             if self.ge.check_bad_letter(entry):
-                self.message_box.setText(f"BAD letter '{self.ge.bad_letter}'!")
+                self.message_box.setText(f" BAD letter '{self.ge.bad_letter}'!")
             # update points and level
             self.point_display.setText(str(self.ge.point_total))
             current_level = self.ge.get_current_level()
-            if current_level[:5] != self.status_info.text().lstrip()[:5]:
+            if current_level[:4] != self.status_info.text().lstrip()[:4]:
+                self._lgr.info(f"CHANGE level to '{current_level}'")
                 self.status_info.setText(centred_string(current_level+'!'))
 
 # END class SpellingBeeUI
