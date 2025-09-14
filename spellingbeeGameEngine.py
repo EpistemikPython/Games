@@ -10,10 +10,10 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-10"
+__updated__ = "2025-09-14"
 
 import random
-from sys import path, argv
+from sys import path
 path.append("/home/marksa/git/Python/utils")
 from mhsUtils import *
 from mhsLogging import *
@@ -29,10 +29,12 @@ PANGRAM_BONUS = 7
 
 class Level(Enum):
     Beginning = 0.0
-    Good = 0.4
-    Great = 0.6
-    Genius = 0.8
-    Supreme = 1.0
+    Fine      = 0.1
+    Nice      = 0.2
+    Good      = 0.4
+    Excellent = 0.6
+    Supreme   = 0.8
+    Perfect   = 1.0
 
 class GameEngine:
     def __init__(self):
@@ -41,17 +43,18 @@ class GameEngine:
         self.surround_letters = []
         self.current_target = ""
         self.current_guess = ""
+        self.current_answer_list = []
         self.all_pangrams = pangrams.pangrams
-        self._lgr.info(f"type(self.pangrams) = {type(self.all_pangrams)}")
-        self._lgr.info(f"len(self.pangrams) = {len(self.all_pangrams)}")
+        self._lgr.info(f"number of pangrams = {len(self.all_pangrams)}")
         self.all_words = all_spellbee_words.all_sb_words
-        self._lgr.info(f"type(allwords) = {type(self.all_words)}")
-        self._lgr.info(f"len(allwords) = {len(self.all_words)}")
+        self._lgr.info(f"total number of words = {len(self.all_words)}")
         self.pangram_guesses = []
         self.good_guesses = []
+        self.bad_letter = ""
         self.bad_guesses = []
         self.point_total = 0
-        self.maximum_points = 100
+        self.maximum_points = 0
+        # self.check_lists()
 
     def start_game(self):
         self.current_target = self.all_pangrams[random.randrange(0, len(self.all_pangrams))]
@@ -62,9 +65,10 @@ class GameEngine:
             if lett not in self.required_letter and lett not in self.surround_letters:
                 self.surround_letters.append(lett)
         self._lgr.info(f"outer letters = {self.surround_letters}")
+        self.find_maximum_points()
 
     def format_response(self, resp:str) -> str:
-        # remove non-letters, capitalize and return
+        """Remove non-letters, capitalize and remove extra space left and right."""
         formatted_string = ""
         for c in resp:
             if str.isalpha(c):
@@ -73,9 +77,10 @@ class GameEngine:
         return self.current_guess
 
     def check_response(self, resp:str) -> bool:
+        """Check all letters for a good response and also see if a Pangram."""
         self.format_response(resp)
         self._lgr.info(f"check word '{self.current_guess}'")
-        if self.check_letters() and self.check_word():
+        if self.current_guess in self.current_answer_list:
             self._lgr.info(f"{self.current_guess} is a GOOD guess!")
             self.good_guesses.append(self.current_guess)
             self.point_total += (1 if len(resp) == 4 else len(resp))
@@ -88,42 +93,92 @@ class GameEngine:
         self.bad_guesses.append(self.current_guess)
         return False
 
-    def check_letters(self) -> bool:
-        if self.required_letter not in self.current_guess:
-            return False
-        for lett in self.current_guess:
+    def check_bad_letter(self, word:str = "") -> bool:
+        if not word:
+            word = self.current_guess
+        for lett in word:
             if lett != self.required_letter and lett not in self.surround_letters:
-                return False
+                self.bad_letter = lett
+                return True
+        self.bad_letter = ""
+        return False
+
+    def check_letters(self, word:str = "") -> bool:
+        if not word:
+            word = self.current_guess
+        if self.required_letter not in word:
+            return False
+        if self.check_bad_letter(word):
+            return False
         return True
 
-    def check_word(self) -> bool:
-        if self.current_guess in self.all_words:
+    def check_word(self, word:str = "") -> bool:
+        if not word:
+            word = self.current_guess
+        if word in self.all_words:
             return True
         return False
 
-    def check_pangram(self) -> bool:
-        if self.required_letter not in self.current_guess:
+    def check_pangram(self, word:str = "") -> bool:
+        if not word:
+            word = self.current_guess
+        if self.required_letter not in word:
             return False
         for lett in self.surround_letters:
-            if lett not in self.current_guess:
+            if lett not in word:
                 return False
         return True
 
     def get_current_level(self) -> str:
-        current_point_percent = self.point_total / self.get_maximum_points()
+        current_point_percent = self.point_total / self.maximum_points
+        if current_point_percent >= Level.Perfect.value:
+            return Level.Perfect.name
         if current_point_percent >= Level.Supreme.value:
             return Level.Supreme.name
-        if current_point_percent >= Level.Genius.value:
-            return Level.Genius.name
-        if current_point_percent >= Level.Great.value:
-            return Level.Great.name
+        if current_point_percent >= Level.Excellent.value:
+            return Level.Excellent.name
         if current_point_percent >= Level.Good.value:
             return Level.Good.name
+        if current_point_percent >= Level.Nice.value:
+            return Level.Nice.name
+        if current_point_percent >= Level.Fine.value:
+            return Level.Fine.name
         return Level.Beginning.name
 
-    def get_maximum_points(self) -> int:
-        self.maximum_points = 100
-        return self.maximum_points
+    def find_maximum_points(self) -> int:
+        if self.maximum_points > 0:
+            return self.maximum_points
+        total = 0
+        for item in self.all_words:
+            if self.check_letters(item) and self.check_word(item) and not self.check_plural_past(item):
+                total += ( 1 if len(item) == 4 else len(item) )
+                self.current_answer_list.append(item)
+            if self.check_pangram(item):
+                total += PANGRAM_BONUS
+        self._lgr.info(f"Maximum points = {total}.")
+        self._lgr.info(f"Total number of acceptable answers for '{self.required_letter}' + {self.surround_letters} "
+                       f"= {len(self.current_answer_list)}")
+        save_to_json(f"{self.required_letter}_{self.current_target}", self.current_answer_list)
+        self.maximum_points = total
+        return total
+
+    def check_plural_past(self, word:str = "") -> bool:
+        if not word:
+            word = self.current_guess
+        if ( (word[-1] == 'S' and word[:-1] in self.all_words) or
+                ((word[-2:] == "ES" or word[-2:] == "ED") and word[:-2] in self.all_words) ):
+            return True
+        return False
+
+    def check_lists(self):
+        check = []
+        for item in self.all_pangrams:
+            if item not in self.all_words:
+                check.append(item)
+        if check:
+            save_to_json("check_pangrams", check)
+        else:
+            self._lgr.info("All pangrams in word list!")
 
 # END class GameEngine
 
