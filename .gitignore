@@ -19,5 +19,6 @@ check_*
 **/gncout*
 **/old*
 **/json*
+**/output/
 **/term*
 **/venv*
