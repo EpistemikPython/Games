@@ -67,7 +67,7 @@ class GameEngine:
         self._lgr.info(f"outer letters = {self.surround_letters}")
         self.find_maximum_points()
 
-    def format_response(self, resp:str) -> str:
+    def format_guess(self, resp:str) -> str:
         """Remove non-letters, capitalize and remove extra space left and right."""
         formatted_string = ""
         for c in resp:
@@ -76,9 +76,9 @@ class GameEngine:
         self.current_guess = formatted_string.rstrip().lstrip()
         return self.current_guess
 
-    def check_response(self, resp:str) -> bool:
+    def check_guess(self, resp:str) -> bool:
         """Check all letters for a good response and also see if a Pangram."""
-        self.format_response(resp)
+        self.format_guess(resp)
         self._lgr.info(f"check word '{self.current_guess}'")
         if self.current_guess in self.current_answer_list:
             self._lgr.info(f"{self.current_guess} is a GOOD guess!")
