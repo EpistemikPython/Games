@@ -34038,7 +34038,7 @@ all_sb_words = [
     "USURPER",
     "USURY",
     "UTAH",
-    "UTENSILS",
+    "UTENSIL",
     "UTERINE",
     "UTERUS",
     "UTIL",
