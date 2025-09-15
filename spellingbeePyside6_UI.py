@@ -10,8 +10,9 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-14"
+__updated__ = "2025-09-15"
 
+import string
 from sys import argv
 from PySide6 import QtCore, QtGui
 from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QDialog, QLabel, QFormLayout,
@@ -21,6 +22,8 @@ from spellingbeeGameEngine import *
 GUI_WIDTH  = 572
 GUI_HEIGHT = 960
 LETTERS_WIDTH = GUI_WIDTH // 12
+
+cleaner = str.maketrans('', '', string.punctuation)
 
 def centred_string(p:str):
     return (" " * ((LETTERS_WIDTH-len(p)) // 2)) + p
@@ -43,8 +46,8 @@ class SpellingBeeUI(QDialog):
         self.height = GUI_HEIGHT
         self.ge = GameEngine()
 
-        self._lgr = log_control.get_logger()
-        self._lgr.log(DEFAULT_LOG_LEVEL, f"{self.title} runtime = {get_current_time()}" )
+        self.lgr = log_control.get_logger()
+        self.lgr.log(DEFAULT_LOG_LEVEL, f"{self.title} runtime = {get_current_time()}")
 
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
@@ -55,7 +58,7 @@ class SpellingBeeUI(QDialog):
         self.status_info.setStyleSheet("font-weight: bold; font-style: italic; font-size: 28pt; color: orange; background: cyan")
 
         self.current_response = ""
-        self.valid_responses = ""
+        self.valid_responses = []
         self.pangram_responses = "Pangrams:"
         valid_label = QLabel("Valid responses:")
         valid_label.setStyleSheet("font-weight: bold; color: green")
@@ -114,7 +117,7 @@ class SpellingBeeUI(QDialog):
         self.cdivider.setStyleSheet("font-weight: bold; font-size: 20pt")
         self.ctotal_display = QLabel(str(self.ge.total_num_answers))
         self.ctotal_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: purple")
-        self.count_label = QLabel("words")
+        self.count_label = QLabel(" words")
         self.count_label.setStyleSheet("font-size: 18pt")
         # status button
         points_row = QHBoxLayout()
@@ -171,7 +174,7 @@ class SpellingBeeUI(QDialog):
 
     def scramble_letters(self):
         """Change the placement of the surround letters."""
-        self._lgr.info("scramble_letters()")
+        self.lgr.info("scramble_letters()")
         picked = self.ge.surround_letters.copy()
         next_lett = picked[random.randrange(0,6)]
         self.upper_left_letter.setText(next_lett)
@@ -192,7 +195,7 @@ class SpellingBeeUI(QDialog):
         self.lower_right_letter.setText(next_lett)
 
     def response_change(self, resp:str):
-        self._lgr.debug(f"Response changed to: '{resp}'")
+        self.lgr.debug(f"Response changed to: '{resp}'")
         if resp:
             if resp[-1] == " ":
                 # re-arrange the outer letters when space bar pressed
@@ -205,7 +208,7 @@ class SpellingBeeUI(QDialog):
         """'Enter' key was pressed so take the current response and check if it is a valid word."""
         entry = self.response_box.text()
         if entry and len(entry) >= MIN_WORD_LENGTH:
-            self._lgr.info(f"Current response is: '{entry}'")
+            self.lgr.info(f"Current response is: '{entry}'")
             # check if already tried
             if entry in self.ge.good_guesses or entry in self.ge.bad_guesses:
                 self.message_box.setText(f" Already tried '{entry}' ;)")
@@ -214,7 +217,7 @@ class SpellingBeeUI(QDialog):
             # ignore if simple plural or past
             if self.ge.check_plurals(entry):
                 self.message_box.setText("Most simple PLURALS are IGNORED :(")
-                self._lgr.info("Most simple PLURALS are IGNORED :(")
+                self.lgr.info("Most simple PLURALS are IGNORED :(")
                 self.response_box.setText("")
                 return
             # check the word and enter into VALID or INVALID response box
@@ -222,19 +225,24 @@ class SpellingBeeUI(QDialog):
                 if entry in self.ge.pangram_guesses:
                     self.pangram_responses = f"{self.pangram_responses}   {entry}"
                 else:
-                    self.valid_responses = f"{self.valid_responses}   {entry}"
+                    self.valid_responses.append(entry) # = f"{self.valid_responses}   {entry}"
+                    self.valid_responses.sort()
                 if self.pangram_responses:
                     # special font settings for Pangrams
                     regular_font_weight = self.valid_response_box.fontWeight()
-                    self._lgr.debug(f"current font weight = {regular_font_weight}")
+                    self.lgr.debug(f"current font weight = {regular_font_weight}")
                     self.valid_response_box.setFontWeight(QtGui.QFont.Weight.Bold)
                     self.valid_response_box.setFontItalic(True)
                     self.valid_response_box.setPlainText(self.pangram_responses)
                     self.valid_response_box.setFontWeight(regular_font_weight)
                     self.valid_response_box.setFontItalic(False)
                 self.valid_response_box.append("Regular:")
-                self.valid_response_box.append(self.valid_responses)
-                self._lgr.debug(self.valid_response_box.toPlainText())
+                str_resp = str(self.valid_responses)
+                self.lgr.debug(f"str_resp = <{str_resp}>")
+                cleaned_text = str_resp.translate(cleaner)
+                self.lgr.debug(f"cleaned_text = <{cleaned_text}>")
+                self.valid_response_box.append(cleaned_text)
+                self.lgr.debug(self.valid_response_box.toPlainText())
             else:
                 self.invalid_response_box.setPlainText(self.invalid_response_box.toPlainText() + f"   {entry}")
             # clear the current response
@@ -250,7 +258,7 @@ class SpellingBeeUI(QDialog):
             self.count_display.setText(str(self.ge.num_good_guesses))
             current_level = self.ge.get_current_level()
             if current_level[:4] != self.status_info.text().lstrip()[:4]:
-                self._lgr.info(f"CHANGE level to '{current_level}'")
+                self.lgr.info(f"CHANGE level to '{current_level}'")
                 self.status_info.setText(centred_string(current_level+'!'))
 
 # END class SpellingBeeUI
