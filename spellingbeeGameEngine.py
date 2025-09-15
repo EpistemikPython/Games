@@ -19,7 +19,7 @@ from mhsUtils import *
 from mhsLogging import *
 from enum import Enum
 import pangrams
-import all_spellbee_words
+import all_words
 
 TARGET_WORD_FILE = "/home/marksa/git/Python/Games/input/pangrams.json"
 REFERENCE_WORD_FILE = "/home/marksa/git/Python/Games/input/all_spellbee_words.json"
@@ -44,12 +44,14 @@ class GameEngine:
         self.current_target = ""
         self.current_guess = ""
         self.current_answer_list = []
+        self.total_num_answers = 0
         self.all_pangrams = pangrams.pangrams
         self._lgr.info(f"number of pangrams = {len(self.all_pangrams)}")
-        self.all_words = all_spellbee_words.all_sb_words
+        self.all_words = all_words.all_sb_words
         self._lgr.info(f"total number of words = {len(self.all_words)}")
         self.pangram_guesses = []
         self.good_guesses = []
+        self.num_good_guesses = 0
         self.bad_letter = ""
         self.bad_guesses = []
         self.point_total = 0
@@ -84,6 +86,7 @@ class GameEngine:
             self._lgr.info(f"{self.current_guess} is a GOOD guess!")
             self.good_guesses.append(self.current_guess)
             self.point_total += (1 if len(resp) == 4 else len(resp))
+            self.num_good_guesses += 1
             if self.check_pangram():
                 self._lgr.info(f"{self.current_guess} is a PANGRAM!")
                 self.pangram_guesses.append(self.current_guess)
@@ -150,23 +153,24 @@ class GameEngine:
             return self.maximum_points
         total = 0
         for item in self.all_words:
-            if self.check_letters(item) and self.check_word(item) and not self.check_plural_past(item):
+            if self.check_letters(item) and self.check_word(item) and not self.check_plurals(item):
                 total += ( 1 if len(item) == 4 else len(item) )
                 self.current_answer_list.append(item)
             if self.check_pangram(item):
                 total += PANGRAM_BONUS
         self._lgr.info(f"Maximum points = {total}.")
+        self.total_num_answers = len(self.current_answer_list)
         self._lgr.info(f"Total number of acceptable answers for '{self.required_letter}' + {self.surround_letters} "
-                       f"= {len(self.current_answer_list)}")
+                       f"= {self.total_num_answers}")
         save_to_json(f"{self.required_letter}_{self.current_target}", self.current_answer_list)
         self.maximum_points = total
         return total
 
-    def check_plural_past(self, word:str = "") -> bool:
+    def check_plurals(self, word:str = "") -> bool:
         if not word:
             word = self.current_guess
-        if ( (word[-1] == 'S' and word[:-1] in self.all_words) or
-                ((word[-2:] == "ES" or word[-2:] == "ED") and word[:-2] in self.all_words) ):
+        if word not in self.current_answer_list and ( (word[-1] == 'S' and word[:-1] in self.all_words) or
+                (word[-2:] == "ES" and word[:-2] in self.all_words) ):
             return True
         return False
 

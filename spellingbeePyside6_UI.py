@@ -99,18 +99,34 @@ class SpellingBeeUI(QDialog):
 
         self.point_display = QLabel("000")
         self.point_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: green")
-        self.divider = QLabel("/")
+        self.pdivider = QLabel("/")
+        self.pdivider.setStyleSheet("font-weight: bold; font-size: 20pt")
+        self.ptotal_display = QLabel(str(self.ge.maximum_points))
+        self.ptotal_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: purple")
+        self.point_label = QLabel("   points")
+        self.point_label.setStyleSheet("font-size: 18pt")
+        self.divider = QLabel("   ")
         self.divider.setStyleSheet("font-weight: bold; font-size: 28pt")
-        self.total_display = QLabel(str(self.ge.maximum_points))
-        self.total_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: purple")
-        self.point_label = QLabel("  points                      ")
-        self.point_label.setStyleSheet("font-size: 28pt")
+        # word count
+        self.count_display = QLabel("000")
+        self.count_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: green")
+        self.cdivider = QLabel("/")
+        self.cdivider.setStyleSheet("font-weight: bold; font-size: 20pt")
+        self.ctotal_display = QLabel(str(self.ge.total_num_answers))
+        self.ctotal_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: purple")
+        self.count_label = QLabel("words")
+        self.count_label.setStyleSheet("font-size: 18pt")
         # status button
         points_row = QHBoxLayout()
         points_row.addWidget(self.point_display)
-        points_row.addWidget(self.divider)
-        points_row.addWidget(self.total_display)
+        points_row.addWidget(self.pdivider)
+        points_row.addWidget(self.ptotal_display)
         points_row.addWidget(self.point_label)
+        points_row.addWidget(self.divider)
+        points_row.addWidget(self.count_display)
+        points_row.addWidget(self.cdivider)
+        points_row.addWidget(self.ctotal_display)
+        points_row.addWidget(self.count_label)
         gb_layout.addRow(points_row)
 
         self.upper_left_letter = QLabel("U")
@@ -196,9 +212,9 @@ class SpellingBeeUI(QDialog):
                 self.response_box.setText("")
                 return
             # ignore if simple plural or past
-            if self.ge.check_plural_past(entry):
-                self.message_box.setText("Most simple PLURALS or PAST are IGNORED :(")
-                self._lgr.info("Most simple PLURALS or PAST tense are IGNORED :(")
+            if self.ge.check_plurals(entry):
+                self.message_box.setText("Most simple PLURALS are IGNORED :(")
+                self._lgr.info("Most simple PLURALS are IGNORED :(")
                 self.response_box.setText("")
                 return
             # check the word and enter into VALID or INVALID response box
@@ -229,8 +245,9 @@ class SpellingBeeUI(QDialog):
                 self.message_box.setText(" Missing Centre letter!")
             if self.ge.check_bad_letter(entry):
                 self.message_box.setText(f" BAD letter '{self.ge.bad_letter}'!")
-            # update points and level
+            # update points, count and level
             self.point_display.setText(str(self.ge.point_total))
+            self.count_display.setText(str(self.ge.num_good_guesses))
             current_level = self.ge.get_current_level()
             if current_level[:4] != self.status_info.text().lstrip()[:4]:
                 self._lgr.info(f"CHANGE level to '{current_level}'")
