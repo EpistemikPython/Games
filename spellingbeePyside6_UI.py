@@ -10,20 +10,18 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-15"
+__updated__ = "2025-09-16"
 
 import string
 from sys import argv
 from PySide6 import QtCore, QtGui
-from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QDialog, QLabel, QFormLayout,
-                               QTextEdit, QHBoxLayout, QFrame, QLineEdit)
+from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QDialog, QLabel,
+                               QFormLayout, QTextEdit, QHBoxLayout, QFrame, QLineEdit)
 from spellingbeeGameEngine import *
 
 GUI_WIDTH  = 572
 GUI_HEIGHT = 960
-LETTERS_WIDTH = GUI_WIDTH // 12
-
-cleaner = str.maketrans('', '', string.punctuation)
+LETTERS_WIDTH = GUI_WIDTH // 11
 
 def centred_string(p:str):
     return (" " * ((LETTERS_WIDTH-len(p)) // 2)) + p
@@ -82,6 +80,10 @@ class SpellingBeeUI(QDialog):
         layout.addWidget(self.invalid_response_box)
         self.setLayout(layout)
 
+    def close(self, /):
+        self.ge.end_game()
+        super().close()
+
     def create_game_box(self):
         self.gb_main = QGroupBox()
         gb_layout = QFormLayout()
@@ -98,6 +100,7 @@ class SpellingBeeUI(QDialog):
         self.message_box.setFrame(True)
         self.message_box.setReadOnly(True)
         self.message_box.setStyleSheet("font-size: 14pt; font-family: italic; color:red")
+        # ?? TIMER
         gb_layout.addRow(QLabel("Message: "),self.message_box)
 
         self.point_display = QLabel("000")
@@ -132,9 +135,9 @@ class SpellingBeeUI(QDialog):
         points_row.addWidget(self.count_label)
         gb_layout.addRow(points_row)
 
-        self.upper_left_letter = QLabel("U")
+        self.upper_left_letter = QLabel("UL")
         set_letter_label_style(self.upper_left_letter)
-        self.upper_right_letter = QLabel("R")
+        self.upper_right_letter = QLabel("UR")
         set_letter_label_style(self.upper_right_letter)
         top_row = QHBoxLayout()
         top_row.addWidget(self.upper_left_letter)
@@ -145,9 +148,9 @@ class SpellingBeeUI(QDialog):
         self.central_letter.setStyleSheet("font-weight: bold; color: purple; background: yellow; font-size: 42pt")
         self.central_letter.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
         self.central_letter.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignHCenter)
-        self.central_left_letter = QLabel("L")
+        self.central_left_letter = QLabel("CL")
         set_letter_label_style(self.central_left_letter)
-        self.central_right_letter = QLabel("M")
+        self.central_right_letter = QLabel("CR")
         set_letter_label_style(self.central_right_letter)
         middle_row = QHBoxLayout()
         middle_row.addWidget(self.central_left_letter)
@@ -155,9 +158,9 @@ class SpellingBeeUI(QDialog):
         middle_row.addWidget(self.central_right_letter)
         gb_layout.addRow(middle_row)
 
-        self.lower_left_letter = QLabel("D")
+        self.lower_left_letter = QLabel("LL")
         set_letter_label_style(self.lower_left_letter)
-        self.lower_right_letter = QLabel("A")
+        self.lower_right_letter = QLabel("LR")
         set_letter_label_style(self.lower_right_letter)
         bottom_row = QHBoxLayout()
         bottom_row.addWidget(self.lower_left_letter)
@@ -216,8 +219,9 @@ class SpellingBeeUI(QDialog):
                 return
             # ignore if simple plural or past
             if self.ge.check_plurals(entry):
-                self.message_box.setText("Most simple PLURALS are IGNORED :(")
-                self.lgr.info("Most simple PLURALS are IGNORED :(")
+                plurals_msg = "Most simple PLURALS are IGNORED :("
+                self.message_box.setText(plurals_msg)
+                self.lgr.info(plurals_msg)
                 self.response_box.setText("")
                 return
             # check the word and enter into VALID or INVALID response box
@@ -237,7 +241,7 @@ class SpellingBeeUI(QDialog):
                     self.valid_response_box.setFontWeight(regular_font_weight)
                     self.valid_response_box.setFontItalic(False)
                 self.valid_response_box.append("Regular:")
-                str_resp = str(self.valid_responses)
+                str_resp = (str(self.valid_responses)).replace(" ", "  ")
                 self.lgr.debug(f"str_resp = <{str_resp}>")
                 cleaned_text = str_resp.translate(cleaner)
                 self.lgr.debug(f"cleaned_text = <{cleaned_text}>")
@@ -266,6 +270,7 @@ class SpellingBeeUI(QDialog):
 
 if __name__ == "__main__":
     log_control = MhsLogger(SpellingBeeUI.__name__, con_level = DEFAULT_LOG_LEVEL)
+    cleaner = str.maketrans('', '', string.punctuation)
     dialog = None
     app = None
     code = 0
