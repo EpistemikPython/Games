@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-14"
+__updated__ = "2025-09-16"
 
 import random
 from sys import path
@@ -68,6 +68,13 @@ class GameEngine:
                 self.surround_letters.append(lett)
         self._lgr.info(f"outer letters = {self.surround_letters}")
         self.find_maximum_points()
+
+    def end_game(self):
+        # save game record
+        game_record = {"TARGET":self.current_target, "REQUIRED":self.required_letter, "COMPLETE_ANSWER_LIST":self.current_answer_list,
+                       "PANGRAM_GUESSES":self.pangram_guesses, "GOOD_GUESSES":self.good_guesses, "BAD_GUESSES":self.bad_guesses}
+        grfile = save_to_json(f"GameRecord_{self.required_letter}_{self.current_target}", game_record)
+        self._lgr.info(f"Saved game record as: {grfile}")
 
     def format_guess(self, resp:str) -> str:
         """Remove non-letters, capitalize and remove extra space left and right."""
