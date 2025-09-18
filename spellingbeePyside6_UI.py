@@ -10,18 +10,46 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-16"
+__updated__ = "2025-09-17"
 
 import string
 from sys import argv
 from PySide6 import QtCore, QtGui
-from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QDialog, QLabel,
-                               QFormLayout, QTextEdit, QHBoxLayout, QFrame, QLineEdit)
+from PySide6.QtGui import Qt
+from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QDialog, QLabel, QPushButton,
+                               QMessageBox, QFormLayout, QTextEdit, QHBoxLayout, QFrame, QLineEdit)
 from spellingbeeGameEngine import *
 
 GUI_WIDTH  = 572
 GUI_HEIGHT = 960
 LETTERS_WIDTH = GUI_WIDTH // 11
+INFO_TEXT = ("How to Play the Game:\n"
+             "1) Enter a word (at least 4 letters) in the 'Try' box.\n"
+             "2) Press ENTER to evaluate your guess.\n"
+             "3) Press the space bar to scramble the placement of the outer letters.\n"
+             "4) Your Good or Bad guesses are recorded in the appropriate boxes.\n"
+             "5) Pangrams are words that use ALL seven letters. :)\n"
+             "6) Exit the game when you are ready and your game information will be saved.")
+
+def display_info():
+    infobox = QMessageBox()
+    infobox.setIcon(QMessageBox.Icon.Information)
+    infobox.setStyleSheet("font-size: 12pt")
+    infobox.setText(INFO_TEXT)
+    infobox.exec()
+    return
+
+def confirm_exit():
+    confirm_box = QMessageBox()
+    confirm_box.setIcon(QMessageBox.Icon.Question)
+    confirm_box.setStyleSheet("font-size: 18pt")
+    confirm_box.setText(" Are you SURE you want to EXIT the game? ")
+    proceed_button = confirm_box.addButton(">> PROCEED to Exit!     :o", QMessageBox.ButtonRole.ActionRole)
+    proceed_button.setStyleSheet("font-weight: bold; color: yellow; background-color: red")
+    cancel_button = confirm_box.addButton(" Continue the game     :)", QMessageBox.ButtonRole.ActionRole)
+    cancel_button.setStyleSheet("background-color: green")
+    confirm_box.setDefaultButton(cancel_button)
+    return confirm_box, proceed_button, cancel_button
 
 def centred_string(p:str):
     return (" " * ((LETTERS_WIDTH-len(p)) // 2)) + p
@@ -69,6 +97,19 @@ class SpellingBeeUI(QDialog):
         self.invalid_response_box.setReadOnly(True)
 
         # buttons: instructions, exit
+        info_btn = QPushButton("Game Instructions")
+        info_btn.setStyleSheet("font-size: 24pt; color: yellow; background-color: blue")
+        info_btn.setAutoDefault(False)
+        info_btn.setDefault(False)
+        info_btn.clicked.connect(display_info)
+        exit_btn = QPushButton("Exit Game?")
+        exit_btn.setStyleSheet("font-size: 24pt; font-weight: bold; color: red; background-color: yellow")
+        exit_btn.setAutoDefault(False)
+        exit_btn.setDefault(False)
+        exit_btn.clicked.connect(self.exit_inquiry)
+        bottom_row = QHBoxLayout()
+        bottom_row.addWidget(info_btn, alignment = Qt.AlignmentFlag.AlignLeft)
+        bottom_row.addWidget(exit_btn, alignment = Qt.AlignmentFlag.AlignRight)
 
         self.create_game_box()
         layout = QVBoxLayout()
@@ -78,6 +119,7 @@ class SpellingBeeUI(QDialog):
         layout.addWidget(self.valid_response_box)
         layout.addWidget(invalid_label)
         layout.addWidget(self.invalid_response_box)
+        layout.addLayout(bottom_row)
         self.setLayout(layout)
 
     def close(self, /):
@@ -174,6 +216,15 @@ class SpellingBeeUI(QDialog):
         """Take the required letter and surround letters and enter into the proper widgets."""
         self.central_letter.setText(self.ge.required_letter)
         self.scramble_letters()
+
+    def exit_inquiry(self):
+        confirm_box, initiate_exit_button, continue_game_button = confirm_exit()
+        confirm_box.exec()
+        if confirm_box.clickedButton() == initiate_exit_button:
+            self.lgr.info("Proceed to EXIT!")
+            self.close()
+        elif confirm_box.clickedButton() == continue_game_button:
+            self.lgr.info("Continue the game...")
 
     def scramble_letters(self):
         """Change the placement of the surround letters."""
