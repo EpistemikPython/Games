@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-16"
+__updated__ = "2025-09-17"
 
 import random
 from sys import path
@@ -56,6 +56,7 @@ class GameEngine:
         self.bad_guesses = []
         self.point_total = 0
         self.maximum_points = 0
+        self.saved = False
         # self.check_lists()
 
     def start_game(self):
@@ -71,10 +72,15 @@ class GameEngine:
 
     def end_game(self):
         # save game record
-        game_record = {"TARGET":self.current_target, "REQUIRED":self.required_letter, "COMPLETE_ANSWER_LIST":self.current_answer_list,
-                       "PANGRAM_GUESSES":self.pangram_guesses, "GOOD_GUESSES":self.good_guesses, "BAD_GUESSES":self.bad_guesses}
-        grfile = save_to_json(f"GameRecord_{self.required_letter}_{self.current_target}", game_record)
-        self._lgr.info(f"Saved game record as: {grfile}")
+        if self.good_guesses and not self.saved:
+            self.good_guesses.sort()
+            game_record = {"TARGET":self.current_target, "REQUIRED":self.required_letter, "POINT_TOTAL":self.point_total,
+                           "MAX_POINTS":self.maximum_points, "PANGRAM_GUESSES":self.pangram_guesses,
+                           "GOOD_GUESSES":self.good_guesses, "BAD_GUESSES":self.bad_guesses,
+                           "COMPLETE_ANSWER_LIST":self.current_answer_list}
+            grfile = save_to_json(f"GameRecord_{self.required_letter}_{self.current_target}", game_record)
+            self._lgr.info(f"Saved game record as: {grfile}")
+        self.saved = True
 
     def format_guess(self, resp:str) -> str:
         """Remove non-letters, capitalize and remove extra space left and right."""
@@ -163,12 +169,13 @@ class GameEngine:
             if self.check_letters(item) and self.check_word(item) and not self.check_plurals(item):
                 total += ( 1 if len(item) == 4 else len(item) )
                 self.current_answer_list.append(item)
-            if self.check_pangram(item):
-                total += PANGRAM_BONUS
+                if self.check_pangram(item):
+                    total += PANGRAM_BONUS
+        self.current_answer_list.sort()
         self._lgr.info(f"Maximum points = {total}.")
         self.total_num_answers = len(self.current_answer_list)
-        self._lgr.info(f"Total number of acceptable answers for '{self.required_letter}' + {self.surround_letters} "
-                       f"= {self.total_num_answers}")
+        self._lgr.info(f"Total number of acceptable answers for '{self.required_letter}' + {self.surround_letters}"
+                       f" = {self.total_num_answers}")
         save_to_json(f"{self.required_letter}_{self.current_target}", self.current_answer_list)
         self.maximum_points = total
         return total
