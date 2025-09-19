@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-17"
+__updated__ = "2025-09-18"
 
 import random
 from sys import path
@@ -53,7 +53,8 @@ class GameEngine:
         self.good_guesses = []
         self.num_good_guesses = 0
         self.bad_letter = ""
-        self.bad_guesses = []
+        self.bad_word_guesses = []
+        self.bad_letter_guesses = []
         self.point_total = 0
         self.maximum_points = 0
         self.saved = False
@@ -72,15 +73,15 @@ class GameEngine:
 
     def end_game(self):
         # save game record
-        if self.good_guesses and not self.saved:
+        if not self.saved and self.good_guesses:
             self.good_guesses.sort()
             game_record = {"TARGET":self.current_target, "REQUIRED":self.required_letter, "POINT_TOTAL":self.point_total,
                            "MAX_POINTS":self.maximum_points, "PANGRAM_GUESSES":self.pangram_guesses,
-                           "GOOD_GUESSES":self.good_guesses, "BAD_GUESSES":self.bad_guesses,
-                           "COMPLETE_ANSWER_LIST":self.current_answer_list}
+                           "GOOD_GUESSES":self.good_guesses, "BAD_LETTER_GUESSES":self.bad_letter_guesses,
+                           "BAD_WORD_GUESSES":self.bad_word_guesses, "COMPLETE_ANSWER_LIST":self.current_answer_list}
             grfile = save_to_json(f"GameRecord_{self.required_letter}_{self.current_target}", game_record)
             self._lgr.info(f"Saved game record as: {grfile}")
-        self.saved = True
+            self.saved = True
 
     def format_guess(self, resp:str) -> str:
         """Remove non-letters, capitalize and remove extra space left and right."""
@@ -106,7 +107,10 @@ class GameEngine:
                 self.point_total += PANGRAM_BONUS
             return True
         self._lgr.info(f"{self.current_guess} is a BAD guess!")
-        self.bad_guesses.append(self.current_guess)
+        if not self.check_letters():
+            self.bad_letter_guesses.append(self.current_guess)
+            return False
+        self.bad_word_guesses.append(self.current_guess)
         return False
 
     def check_bad_letter(self, word:str = "") -> bool:
