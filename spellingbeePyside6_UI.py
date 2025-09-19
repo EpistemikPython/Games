@@ -10,26 +10,28 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-17"
+__updated__ = "2025-09-18"
 
 import string
 from sys import argv
-from PySide6 import QtCore, QtGui
-from PySide6.QtGui import Qt
+from PySide6 import QtCore
+from PySide6.QtGui import Qt, QFont
 from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QDialog, QLabel, QPushButton,
                                QMessageBox, QFormLayout, QTextEdit, QHBoxLayout, QFrame, QLineEdit)
 from spellingbeeGameEngine import *
 
 GUI_WIDTH  = 572
 GUI_HEIGHT = 960
-LETTERS_WIDTH = GUI_WIDTH // 11
+LETTERS_WIDTH = int(GUI_WIDTH / 11)
 INFO_TEXT = ("How to Play the Game:\n"
+             "---------------------\n"
              "1) Enter a word (at least 4 letters) in the 'Try' box.\n"
              "2) Press ENTER to evaluate your guess.\n"
-             "3) Press the space bar to scramble the placement of the outer letters.\n"
-             "4) Your Good or Bad guesses are recorded in the appropriate boxes.\n"
-             "5) Pangrams are words that use ALL seven letters. :)\n"
-             "6) Exit the game when you are ready and your game information will be saved.")
+             "3) FYI, most plurals are just ignored... \n"
+             "4) Press the space bar to scramble the placement of the outer letters.\n"
+             "5) Your Good or Bad guesses are displayed in the appropriate boxes.\n"
+             "6) Pangrams are words that use ALL seven letters. :)\n"
+             "7) Exit the game when you are ready and your game information will be saved.")
 
 def display_info():
     infobox = QMessageBox()
@@ -44,10 +46,10 @@ def confirm_exit():
     confirm_box.setIcon(QMessageBox.Icon.Question)
     confirm_box.setStyleSheet("font-size: 18pt")
     confirm_box.setText(" Are you SURE you want to EXIT the game? ")
-    proceed_button = confirm_box.addButton(">> PROCEED to Exit!     :o", QMessageBox.ButtonRole.ActionRole)
-    proceed_button.setStyleSheet("font-weight: bold; color: yellow; background-color: red")
     cancel_button = confirm_box.addButton(" Continue the game     :)", QMessageBox.ButtonRole.ActionRole)
     cancel_button.setStyleSheet("background-color: green")
+    proceed_button = confirm_box.addButton(">> PROCEED to Exit!     :o", QMessageBox.ButtonRole.ActionRole)
+    proceed_button.setStyleSheet("font-weight: bold; color: yellow; background-color: red")
     confirm_box.setDefaultButton(cancel_button)
     return confirm_box, proceed_button, cancel_button
 
@@ -91,6 +93,8 @@ class SpellingBeeUI(QDialog):
         self.valid_response_box = QTextEdit()
         self.valid_response_box.setReadOnly(True)
 
+        self.invalid_responses = []
+        self.bad_letter_responses = "Bad/Missing letter:"
         invalid_label = QLabel("INVALID responses:")
         invalid_label.setStyleSheet("font-weight: bold; color: red")
         self.invalid_response_box = QTextEdit()
@@ -264,7 +268,7 @@ class SpellingBeeUI(QDialog):
         if entry and len(entry) >= MIN_WORD_LENGTH:
             self.lgr.info(f"Current response is: '{entry}'")
             # check if already tried
-            if entry in self.ge.good_guesses or entry in self.ge.bad_guesses:
+            if entry in self.ge.good_guesses or entry in self.ge.bad_word_guesses or entry in self.ge.bad_letter_guesses:
                 self.message_box.setText(f" Already tried '{entry}' ;)")
                 self.response_box.setText("")
                 return
@@ -280,26 +284,45 @@ class SpellingBeeUI(QDialog):
                 if entry in self.ge.pangram_guesses:
                     self.pangram_responses = f"{self.pangram_responses}   {entry}"
                 else:
-                    self.valid_responses.append(entry) # = f"{self.valid_responses}   {entry}"
+                    self.valid_responses.append(entry)
                     self.valid_responses.sort()
                 if self.pangram_responses:
                     # special font settings for Pangrams
                     regular_font_weight = self.valid_response_box.fontWeight()
                     self.lgr.debug(f"current font weight = {regular_font_weight}")
-                    self.valid_response_box.setFontWeight(QtGui.QFont.Weight.Bold)
+                    self.valid_response_box.setFontWeight(QFont.Weight.Bold)
                     self.valid_response_box.setFontItalic(True)
                     self.valid_response_box.setPlainText(self.pangram_responses)
                     self.valid_response_box.setFontWeight(regular_font_weight)
                     self.valid_response_box.setFontItalic(False)
                 self.valid_response_box.append("Regular:")
                 str_resp = (str(self.valid_responses)).replace(" ", "  ")
-                self.lgr.debug(f"str_resp = <{str_resp}>")
+                self.lgr.debug(f"valid str_resp = <{str_resp}>")
                 cleaned_text = str_resp.translate(cleaner)
-                self.lgr.debug(f"cleaned_text = <{cleaned_text}>")
+                self.lgr.debug(f"valid cleaned_text = <{cleaned_text}>")
                 self.valid_response_box.append(cleaned_text)
                 self.lgr.debug(self.valid_response_box.toPlainText())
             else:
-                self.invalid_response_box.setPlainText(self.invalid_response_box.toPlainText() + f"   {entry}")
+                if entry in self.ge.bad_letter_guesses:
+                    self.bad_letter_responses = f"{self.bad_letter_responses}   {entry}"
+                else:
+                    self.invalid_responses.append(entry)
+                    self.invalid_responses.sort()
+                if self.bad_letter_responses:
+                    # special font settings for bad/missing letters
+                    regular_font_weight = self.invalid_response_box.fontWeight()
+                    self.lgr.debug(f"current font weight = {regular_font_weight}")
+                    self.invalid_response_box.setFontItalic(True)
+                    self.invalid_response_box.setPlainText(self.bad_letter_responses)
+                    self.invalid_response_box.setFontItalic(False)
+                self.invalid_response_box.append("Other:")
+                str_resp = (str(self.invalid_responses)).replace(" ", "  ")
+                self.lgr.debug(f"invalid str_resp = <{str_resp}>")
+                cleaned_text = str_resp.translate(cleaner)
+                self.lgr.debug(f"invalid cleaned_text = <{cleaned_text}>")
+                self.invalid_response_box.append(cleaned_text)
+                self.lgr.debug(self.invalid_response_box.toPlainText())
+                # self.invalid_response_box.setPlainText(self.invalid_response_box.toPlainText() + f"   {entry}")
             # clear the current response
             self.response_box.setText("")
             # send a message if necessary
