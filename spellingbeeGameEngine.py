@@ -10,9 +10,10 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-18"
+__updated__ = "2025-09-20"
 
 import random
+import string
 from sys import path
 path.append("/home/marksa/git/Python/utils")
 from mhsUtils import *
@@ -26,6 +27,23 @@ REFERENCE_WORD_FILE = "/home/marksa/git/Python/Games/input/all_spellbee_words.js
 MIN_WORD_LENGTH = 4
 MAX_WORD_LENGTH = 21
 PANGRAM_BONUS = 7
+
+cleaner = str.maketrans('', '', string.punctuation)
+
+def eligible_pangram(word:str, logger:logging.Logger=None) -> bool:
+    clean_word = word.translate(cleaner)
+    result = ""
+    for lett in clean_word:
+        if not lett.isalpha():
+            return False
+        if lett not in result:
+            result += lett
+    if len(result) == 7:
+        if logger:
+            logger.info(f">> {clean_word} is a potential Pangram!")
+        return True
+    return False
+
 
 class Level(Enum):
     Beginning = 0.0
@@ -58,7 +76,7 @@ class GameEngine:
         self.point_total = 0
         self.maximum_points = 0
         self.saved = False
-        # self.check_lists()
+        self.check_lists()
 
     def start_game(self):
         self.current_target = self.all_pangrams[random.randrange(0, len(self.all_pangrams))]
@@ -198,9 +216,17 @@ class GameEngine:
             if item not in self.all_words:
                 check.append(item)
         if check:
-            save_to_json("check_pangrams", check)
+            save_to_json("pangrams_not_in_words_list", check)
         else:
             self._lgr.info("All pangrams in word list!")
+        check.clear()
+        for item in self.all_words:
+            if eligible_pangram(item) and item not in self.all_pangrams:
+                check.append(item)
+        if check:
+            save_to_json("potential_pangrams_not_in_pangram_list", check)
+        else:
+            self._lgr.info("All potential pangram words in pangram list!")
 
 # END class GameEngine
 
