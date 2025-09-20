@@ -10,9 +10,8 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-18"
+__updated__ = "2025-09-20"
 
-import string
 from sys import argv
 from PySide6 import QtCore
 from PySide6.QtGui import Qt, QFont
@@ -47,9 +46,9 @@ def confirm_exit():
     confirm_box.setStyleSheet("font-size: 18pt")
     confirm_box.setText(" Are you SURE you want to EXIT the game? ")
     cancel_button = confirm_box.addButton(" Continue the game     :)", QMessageBox.ButtonRole.ActionRole)
-    cancel_button.setStyleSheet("background-color: green")
+    cancel_button.setStyleSheet("background-color: chartreuse")
     proceed_button = confirm_box.addButton(">> PROCEED to Exit!     :o", QMessageBox.ButtonRole.ActionRole)
-    proceed_button.setStyleSheet("font-weight: bold; color: yellow; background-color: red")
+    proceed_button.setStyleSheet("color: yellow; background-color: MediumVioletRed")
     confirm_box.setDefaultButton(cancel_button)
     return confirm_box, proceed_button, cancel_button
 
@@ -82,8 +81,8 @@ class SpellingBeeUI(QDialog):
 
         self.ge.start_game()
 
-        self.status_info = QLabel(centred_string(Level.Beginning.name + " :)"))
-        self.status_info.setStyleSheet("font-weight: bold; font-style: italic; font-size: 28pt; color: orange; background: cyan")
+        self.status_info = QLabel(centred_string(Level.Beginning.name + "  :)"))
+        self.status_info.setStyleSheet("font-weight: bold; font-style: italic; font-size: 28pt; color: goldenrod; background: cyan")
 
         self.current_response = ""
         self.valid_responses = []
@@ -149,36 +148,37 @@ class SpellingBeeUI(QDialog):
         # ?? TIMER
         gb_layout.addRow(QLabel("Message: "),self.message_box)
 
+        # number of points
         self.point_display = QLabel("000")
         self.point_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: green")
-        self.pdivider = QLabel("/")
-        self.pdivider.setStyleSheet("font-weight: bold; font-size: 20pt")
-        self.ptotal_display = QLabel(str(self.ge.maximum_points))
-        self.ptotal_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: purple")
-        self.point_label = QLabel("   points")
-        self.point_label.setStyleSheet("font-size: 18pt")
-        self.divider = QLabel("   ")
-        self.divider.setStyleSheet("font-weight: bold; font-size: 28pt")
+        divider = QLabel("/")
+        divider.setStyleSheet("font-weight: bold; font-size: 20pt")
+        ptotal_display = QLabel(str(self.ge.maximum_points))
+        ptotal_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: purple")
+        point_label = QLabel("   points")
+        point_label.setStyleSheet("font-size: 18pt")
+        spacer = QLabel("   ")
+        spacer.setStyleSheet("font-weight: bold; font-size: 28pt")
         # word count
         self.count_display = QLabel("000")
         self.count_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: green")
-        self.cdivider = QLabel("/")
-        self.cdivider.setStyleSheet("font-weight: bold; font-size: 20pt")
-        self.ctotal_display = QLabel(str(self.ge.total_num_answers))
-        self.ctotal_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: purple")
-        self.count_label = QLabel(" words")
-        self.count_label.setStyleSheet("font-size: 18pt")
+        # self.cdivider = QLabel("/")
+        # self.cdivider.setStyleSheet("font-weight: bold; font-size: 20pt")
+        ctotal_display = QLabel(str(self.ge.total_num_answers))
+        ctotal_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: purple")
+        count_label = QLabel(" words")
+        count_label.setStyleSheet("font-size: 18pt")
         # status button
         points_row = QHBoxLayout()
         points_row.addWidget(self.point_display)
-        points_row.addWidget(self.pdivider)
-        points_row.addWidget(self.ptotal_display)
-        points_row.addWidget(self.point_label)
-        points_row.addWidget(self.divider)
+        points_row.addWidget(divider)
+        points_row.addWidget(ptotal_display)
+        points_row.addWidget(point_label)
+        points_row.addWidget(spacer)
         points_row.addWidget(self.count_display)
-        points_row.addWidget(self.cdivider)
-        points_row.addWidget(self.ctotal_display)
-        points_row.addWidget(self.count_label)
+        points_row.addWidget(divider)
+        points_row.addWidget(ctotal_display)
+        points_row.addWidget(count_label)
         gb_layout.addRow(points_row)
 
         self.upper_left_letter = QLabel("UL")
@@ -186,8 +186,10 @@ class SpellingBeeUI(QDialog):
         self.upper_right_letter = QLabel("UR")
         set_letter_label_style(self.upper_right_letter)
         top_row = QHBoxLayout()
+        top_row.addWidget(spacer)
         top_row.addWidget(self.upper_left_letter)
         top_row.addWidget(self.upper_right_letter)
+        top_row.addWidget(spacer)
         gb_layout.addRow(top_row)
 
         self.central_letter = QLabel("X")
@@ -209,8 +211,10 @@ class SpellingBeeUI(QDialog):
         self.lower_right_letter = QLabel("LR")
         set_letter_label_style(self.lower_right_letter)
         bottom_row = QHBoxLayout()
+        bottom_row.addWidget(spacer)
         bottom_row.addWidget(self.lower_left_letter)
         bottom_row.addWidget(self.lower_right_letter)
+        bottom_row.addWidget(spacer)
         gb_layout.addRow(bottom_row)
 
         self.gb_main.setLayout(gb_layout)
@@ -344,7 +348,6 @@ class SpellingBeeUI(QDialog):
 
 if __name__ == "__main__":
     log_control = MhsLogger(SpellingBeeUI.__name__, con_level = DEFAULT_LOG_LEVEL)
-    cleaner = str.maketrans('', '', string.punctuation)
     dialog = None
     app = None
     code = 0
