@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-20"
+__updated__ = "2025-09-23"
 
 from sys import argv
 from PySide6 import QtCore
@@ -22,15 +22,17 @@ from spellingbeeGameEngine import *
 GUI_WIDTH  = 572
 GUI_HEIGHT = 960
 LETTERS_WIDTH = int(GUI_WIDTH / 11)
-INFO_TEXT = ("How to Play the Game:\n"
-             "---------------------\n"
-             "1) Enter a word (at least 4 letters) in the 'Try' box.\n"
-             "2) Press ENTER to evaluate your guess.\n"
-             "3) FYI, most plurals are just ignored... \n"
-             "4) Press the space bar to scramble the placement of the outer letters.\n"
-             "5) Your Good or Bad guesses are displayed in the appropriate boxes.\n"
-             "6) Pangrams are words that use ALL seven letters. :)\n"
-             "7) Exit the game when you are ready and your game information will be saved.")
+INFO_TEXT = (" How to Play the Game:\n"
+             "------------------------------------------\n"
+             "1) Enter a word (at least 4 letters) in the 'Try' box.\n\n"
+             "2) Any number of each displayed letter is allowed, "
+                 "but the Central letter MUST be present in the word.\n\n"
+             "3) Press ENTER to evaluate your guess.\n\n"
+             "4) FYI, most simple plurals are just ignored... \n\n"
+             "5) You can press the space bar to scramble the placement of the outer letters.\n\n"
+             "6) Your Valid or Invalid guesses are displayed in the appropriate boxes.\n\n"
+             "7) Pangrams are words that use ALL seven letters (and earn DOUBLE points!)   :)\n\n"
+             "8) Exit the game when you are ready and your game information will be saved.")
 
 def display_info():
     infobox = QMessageBox()
@@ -151,19 +153,19 @@ class SpellingBeeUI(QDialog):
         # number of points
         self.point_display = QLabel("000")
         self.point_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: green")
-        divider = QLabel("/")
-        divider.setStyleSheet("font-weight: bold; font-size: 20pt")
+        pdivider = QLabel("/")
+        pdivider.setStyleSheet("font-weight: bold; font-size: 20pt")
         ptotal_display = QLabel(str(self.ge.maximum_points))
         ptotal_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: purple")
         point_label = QLabel("   points")
         point_label.setStyleSheet("font-size: 18pt")
-        spacer = QLabel("   ")
-        spacer.setStyleSheet("font-weight: bold; font-size: 28pt")
+        pspacer = QLabel("      ")
+        pspacer.setStyleSheet("font-weight: bold; font-size: 28pt")
         # word count
         self.count_display = QLabel("000")
         self.count_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: green")
-        # self.cdivider = QLabel("/")
-        # self.cdivider.setStyleSheet("font-weight: bold; font-size: 20pt")
+        cdivider = QLabel("/")
+        cdivider.setStyleSheet("font-weight: bold; font-size: 20pt")
         ctotal_display = QLabel(str(self.ge.total_num_answers))
         ctotal_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: purple")
         count_label = QLabel(" words")
@@ -171,29 +173,37 @@ class SpellingBeeUI(QDialog):
         # status button
         points_row = QHBoxLayout()
         points_row.addWidget(self.point_display)
-        points_row.addWidget(divider)
+        points_row.addWidget(pdivider)
         points_row.addWidget(ptotal_display)
         points_row.addWidget(point_label)
-        points_row.addWidget(spacer)
+        points_row.addWidget(pspacer)
         points_row.addWidget(self.count_display)
-        points_row.addWidget(divider)
+        points_row.addWidget(cdivider)
         points_row.addWidget(ctotal_display)
         points_row.addWidget(count_label)
         gb_layout.addRow(points_row)
 
+        ulspacer = QLabel("")
+        ulspacer.setStyleSheet("font-weight: bold; font-size: 24pt")
         self.upper_left_letter = QLabel("UL")
         set_letter_label_style(self.upper_left_letter)
         self.upper_right_letter = QLabel("UR")
         set_letter_label_style(self.upper_right_letter)
+        urspacer = QLabel("")
+        urspacer.setStyleSheet("font-weight: bold; font-size: 24pt")
         top_row = QHBoxLayout()
-        top_row.addWidget(spacer)
+        top_row.addWidget(ulspacer)
         top_row.addWidget(self.upper_left_letter)
         top_row.addWidget(self.upper_right_letter)
-        top_row.addWidget(spacer)
+        top_row.addWidget(urspacer)
+        top_row.setStretchFactor(ulspacer, 1)
+        top_row.setStretchFactor(self.upper_left_letter, 2)
+        top_row.setStretchFactor(self.upper_right_letter, 2)
+        top_row.setStretchFactor(urspacer, 1)
         gb_layout.addRow(top_row)
 
         self.central_letter = QLabel("X")
-        self.central_letter.setStyleSheet("font-weight: bold; color: purple; background: yellow; font-size: 42pt")
+        self.central_letter.setStyleSheet("font-weight: bold; color: purple; background: yellow; font-size: 32pt")
         self.central_letter.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
         self.central_letter.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignHCenter)
         self.central_left_letter = QLabel("CL")
@@ -206,15 +216,23 @@ class SpellingBeeUI(QDialog):
         middle_row.addWidget(self.central_right_letter)
         gb_layout.addRow(middle_row)
 
+        llspacer = QLabel("")
+        llspacer.setStyleSheet("font-weight: bold; font-size: 24pt")
         self.lower_left_letter = QLabel("LL")
         set_letter_label_style(self.lower_left_letter)
         self.lower_right_letter = QLabel("LR")
         set_letter_label_style(self.lower_right_letter)
+        lrspacer = QLabel("")
+        lrspacer.setStyleSheet("font-weight: bold; font-size: 24pt")
         bottom_row = QHBoxLayout()
-        bottom_row.addWidget(spacer)
+        bottom_row.addWidget(llspacer)
         bottom_row.addWidget(self.lower_left_letter)
         bottom_row.addWidget(self.lower_right_letter)
-        bottom_row.addWidget(spacer)
+        bottom_row.addWidget(lrspacer)
+        bottom_row.setStretchFactor(llspacer, 1)
+        bottom_row.setStretchFactor(self.lower_left_letter, 2)
+        bottom_row.setStretchFactor(self.lower_right_letter, 2)
+        bottom_row.setStretchFactor(lrspacer, 1)
         gb_layout.addRow(bottom_row)
 
         self.gb_main.setLayout(gb_layout)
@@ -287,9 +305,11 @@ class SpellingBeeUI(QDialog):
             if self.ge.check_guess(entry):
                 if entry in self.ge.pangram_guesses:
                     self.pangram_responses = f"{self.pangram_responses}   {entry}"
+                    self.message_box.setText(f"Pangram! {self.ge.current_points} points.")
                 else:
                     self.valid_responses.append(entry)
                     self.valid_responses.sort()
+                    self.message_box.setText(f"{self.ge.current_points} point{"s" if len(entry) > MIN_WORD_LENGTH else ""}!")
                 if self.pangram_responses:
                     # special font settings for Pangrams
                     regular_font_weight = self.valid_response_box.fontWeight()
@@ -326,11 +346,11 @@ class SpellingBeeUI(QDialog):
                 self.lgr.debug(f"invalid cleaned_text = <{cleaned_text}>")
                 self.invalid_response_box.append(cleaned_text)
                 self.lgr.debug(self.invalid_response_box.toPlainText())
-                # self.invalid_response_box.setPlainText(self.invalid_response_box.toPlainText() + f"   {entry}")
+                self.message_box.setText(" :(")
             # clear the current response
             self.response_box.setText("")
             # send a message if necessary
-            self.message_box.setText(" Pangram!" if entry in self.ge.pangram_guesses else "")
+            # self.message_box.setText(" Pangram!" if entry in self.ge.pangram_guesses else "")
             if self.ge.required_letter not in entry:
                 self.message_box.setText(" Missing Centre letter!")
             if self.ge.check_bad_letter(entry):
