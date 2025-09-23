@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-20"
+__updated__ = "2025-09-23"
 
 import random
 import string
@@ -22,8 +22,6 @@ from enum import Enum
 import pangrams
 import all_words
 
-TARGET_WORD_FILE = "/home/marksa/git/Python/Games/input/pangrams.json"
-REFERENCE_WORD_FILE = "/home/marksa/git/Python/Games/input/all_spellbee_words.json"
 MIN_WORD_LENGTH = 4
 MAX_WORD_LENGTH = 21
 PANGRAM_BONUS = 7
@@ -75,6 +73,7 @@ class GameEngine:
         self.bad_letter_guesses = []
         self.point_total = 0
         self.maximum_points = 0
+        self.current_points = 0
         self.saved = False
         self.check_lists()
 
@@ -117,13 +116,20 @@ class GameEngine:
         if self.current_guess in self.current_answer_list:
             self._lgr.info(f"{self.current_guess} is a GOOD guess!")
             self.good_guesses.append(self.current_guess)
-            self.point_total += (1 if len(resp) == 4 else len(resp))
+            self.current_points = (1 if len(resp) == MIN_WORD_LENGTH else len(resp))
             self.num_good_guesses += 1
             if self.check_pangram():
                 self._lgr.info(f"{self.current_guess} is a PANGRAM!")
                 self.pangram_guesses.append(self.current_guess)
-                self.point_total += PANGRAM_BONUS
+                self.current_points += len(resp) # PANGRAM_BONUS
+            self.point_total += self.current_points
+            if self.point_total == self.maximum_points:
+                # End the game
+                # accept no more input
+                # special colors?
+                pass
             return True
+
         self._lgr.info(f"{self.current_guess} is a BAD guess!")
         if not self.check_letters():
             self.bad_letter_guesses.append(self.current_guess)
@@ -186,21 +192,21 @@ class GameEngine:
     def find_maximum_points(self) -> int:
         if self.maximum_points > 0:
             return self.maximum_points
-        total = 0
+        point_total = 0
         for item in self.all_words:
             if self.check_letters(item) and self.check_word(item) and not self.check_plurals(item):
-                total += ( 1 if len(item) == 4 else len(item) )
+                point_total += ( 1 if len(item) == MIN_WORD_LENGTH else len(item) )
                 self.current_answer_list.append(item)
                 if self.check_pangram(item):
-                    total += PANGRAM_BONUS
+                    point_total += len(item) # PANGRAM_BONUS
         self.current_answer_list.sort()
-        self._lgr.info(f"Maximum points = {total}.")
+        self._lgr.info(f"Maximum points = {point_total}.")
         self.total_num_answers = len(self.current_answer_list)
         self._lgr.info(f"Total number of acceptable answers for '{self.required_letter}' + {self.surround_letters}"
                        f" = {self.total_num_answers}")
         save_to_json(f"{self.required_letter}_{self.current_target}", self.current_answer_list)
-        self.maximum_points = total
-        return total
+        self.maximum_points = point_total
+        return point_total
 
     def check_plurals(self, word:str = "") -> bool:
         if not word:
