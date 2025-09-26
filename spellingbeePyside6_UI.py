@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-24"
+__updated__ = "2025-09-25"
 
 from sys import argv
 from PySide6 import QtCore
@@ -19,8 +19,19 @@ from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QDialog, QL
                                QMessageBox, QFormLayout, QTextEdit, QHBoxLayout, QFrame, QLineEdit)
 from spellingbeeGameEngine import *
 
-GUI_WIDTH  = 572
-GUI_HEIGHT = 960
+BASIC = 8
+SMALL   = BASIC * 2
+MEDIUM  = BASIC * 3
+SM_MED  = (SMALL + MEDIUM)//2
+LARGE   = BASIC * 4
+MED_LRG = (MEDIUM + LARGE)//2
+SMALL_FONT  = f"font-size: {SMALL}pt;"
+MEDIUM_FONT = f"font-size: {MEDIUM}pt;"
+LARGE_FONT  = f"font-size: {LARGE}pt;"
+FONT_BOLD   = "font-weight: bold;"
+FONT_ITALIC = "font-style: italic;"
+GUI_WIDTH  = MEDIUM * 24
+GUI_HEIGHT = MEDIUM * 40
 LETTERS_WIDTH = int(GUI_WIDTH / 11)
 INFO_TEXT = (" How to Play the Game:\n"
              "------------------------------------------\n"
@@ -37,7 +48,7 @@ INFO_TEXT = (" How to Play the Game:\n"
 def display_info():
     infobox = QMessageBox()
     infobox.setIcon(QMessageBox.Icon.Information)
-    infobox.setStyleSheet("font-size: 12pt")
+    infobox.setStyleSheet(SMALL_FONT)
     infobox.setText(INFO_TEXT)
     infobox.exec()
     return
@@ -48,22 +59,22 @@ def confirm_exit():
     confirm_box.setStyleSheet("font-size: 18pt")
     confirm_box.setText(" Are you SURE you want to EXIT the game? ")
     cancel_button = confirm_box.addButton(" Continue the game     :)", QMessageBox.ButtonRole.ActionRole)
-    cancel_button.setStyleSheet("background-color: chartreuse")
+    cancel_button.setStyleSheet("background: chartreuse")
     proceed_button = confirm_box.addButton(">> PROCEED to Exit!     :o", QMessageBox.ButtonRole.ActionRole)
-    proceed_button.setStyleSheet("color: yellow; background-color: MediumVioletRed")
+    proceed_button.setStyleSheet("color: yellow; background: MediumVioletRed")
     confirm_box.setDefaultButton(cancel_button)
     return confirm_box, proceed_button, cancel_button
 
 def centred_string(p:str):
     return (" " * ((LETTERS_WIDTH-len(p)) // 2)) + p
 
-def set_letter_label_style(qlabel:QLabel, font_size:int = 32):
-    qlabel.setStyleSheet(f"font-weight: bold; color: blue; background: white; font-size: {font_size}pt")
+def set_letter_label_style(qlabel:QLabel, font_size:int = LARGE):
+    qlabel.setStyleSheet(f"{FONT_BOLD} color: blue; background: white; font-size: {font_size}pt")
     qlabel.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Sunken)
     qlabel.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignHCenter)
 
-def set_label_bold(qlabel:QLabel, font_size:int = 24):
-    qlabel.setStyleSheet(f"font-weight: bold; font-size: {font_size}pt")
+def set_label_bold(qlabel:QLabel, font_size:int = MEDIUM):
+    qlabel.setStyleSheet(f"{FONT_BOLD} font-size: {font_size}pt")
 
 # noinspection PyAttributeOutsideInit
 class SpellingBeeUI(QDialog):
@@ -75,6 +86,7 @@ class SpellingBeeUI(QDialog):
         self.top  = 80
         self.width  = GUI_WIDTH
         self.height = GUI_HEIGHT
+        self.size()
         self.ge = GameEngine()
 
         self.lgr = log_control.get_logger()
@@ -86,31 +98,31 @@ class SpellingBeeUI(QDialog):
         self.ge.start_game()
 
         self.status_info = QLabel(centred_string(Level.Beginning.name + "  :)"))
-        self.status_info.setStyleSheet("font-weight: bold; font-style: italic; font-size: 28pt; color: goldenrod; background: cyan")
+        self.status_info.setStyleSheet(f"{FONT_BOLD} {FONT_ITALIC} font-size: {MED_LRG}pt; color: goldenrod; background: cyan")
 
         self.current_response = ""
         self.valid_responses = []
         self.pangram_responses = "Pangrams:"
         valid_label = QLabel("Valid responses:")
-        valid_label.setStyleSheet("font-weight: bold; color: green")
+        valid_label.setStyleSheet(f"{FONT_BOLD} color: green")
         self.valid_response_box = QTextEdit()
         self.valid_response_box.setReadOnly(True)
 
         self.invalid_responses = []
         self.bad_letter_responses = "Bad/Missing letter:"
         invalid_label = QLabel("INVALID responses:")
-        invalid_label.setStyleSheet("font-weight: bold; color: red")
+        invalid_label.setStyleSheet(f"{FONT_BOLD} color: red")
         self.invalid_response_box = QTextEdit()
         self.invalid_response_box.setReadOnly(True)
 
         # buttons: instructions, exit
         info_btn = QPushButton("Game Instructions")
-        info_btn.setStyleSheet("font-size: 24pt; color: yellow; background-color: blue")
+        info_btn.setStyleSheet(f"{MEDIUM_FONT} color: yellow; background: blue")
         info_btn.setAutoDefault(False)
         info_btn.setDefault(False)
         info_btn.clicked.connect(display_info)
         exit_btn = QPushButton("Exit Game?")
-        exit_btn.setStyleSheet("font-size: 24pt; font-weight: bold; color: red; background-color: yellow")
+        exit_btn.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: red; background: yellow")
         exit_btn.setAutoDefault(False)
         exit_btn.setDefault(False)
         exit_btn.clicked.connect(self.exit_inquiry)
@@ -127,6 +139,11 @@ class SpellingBeeUI(QDialog):
         layout.addWidget(invalid_label)
         layout.addWidget(self.invalid_response_box)
         layout.addLayout(bottom_row)
+
+        self.central_letter.setText(self.ge.required_letter)
+        self.scramble_letters()
+        # use this and the game size changes around for some reason??
+        # layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
         self.setLayout(layout)
 
     def close(self, /):
@@ -139,7 +156,7 @@ class SpellingBeeUI(QDialog):
 
         self.response_box = QLineEdit()
         self.response_box.setFrame(True)
-        self.response_box.setStyleSheet("font-style: italic; font-size: 24pt")
+        self.response_box.setStyleSheet(f"{FONT_ITALIC} {MEDIUM_FONT}")
         self.response_box.setMaxLength(MAX_WORD_LENGTH)
         self.response_box.textEdited.connect(self.response_change)
         self.response_box.returnPressed.connect(self.process_response)
@@ -148,33 +165,30 @@ class SpellingBeeUI(QDialog):
         self.message_box = QLineEdit()
         self.message_box.setFrame(True)
         self.message_box.setReadOnly(True)
-        self.message_box.setStyleSheet("font-size: 14pt; font-family: italic; color:red")
+        self.message_box.setStyleSheet(f"{SMALL_FONT} color:red")
         # ?? TIMER
         gb_layout.addRow(QLabel("Message: "),self.message_box)
 
         # number of points
         self.point_display = QLabel("000")
-        self.point_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: green")
+        self.point_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: green")
         pdivider = QLabel("/")
-        set_label_bold(pdivider, 20)
-        # pdivider.setStyleSheet("font-weight: bold; font-size: 20pt")
+        set_label_bold(pdivider, SM_MED)
         ptotal_display = QLabel(str(self.ge.maximum_points))
-        ptotal_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: purple")
+        ptotal_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: purple")
         point_label = QLabel("   points")
-        point_label.setStyleSheet("font-size: 18pt")
+        point_label.setStyleSheet(f"font-size: {SM_MED}pt")
         pspacer = QLabel("      ")
-        set_label_bold(pspacer, 28)
-        # pspacer.setStyleSheet("font-weight: bold; font-size: 28pt")
+        set_label_bold(pspacer, MED_LRG)
         # word count
         self.count_display = QLabel("000")
-        self.count_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: green")
+        self.count_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: green")
         cdivider = QLabel("/")
-        set_label_bold(cdivider, 20)
-        # cdivider.setStyleSheet("font-weight: bold; font-size: 20pt")
+        set_label_bold(cdivider, SM_MED)
         ctotal_display = QLabel(str(self.ge.total_num_answers))
-        ctotal_display.setStyleSheet("font-weight: bold; font-size: 24pt; color: purple")
+        ctotal_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: purple")
         count_label = QLabel(" words")
-        count_label.setStyleSheet("font-size: 18pt")
+        count_label.setStyleSheet(f"font-size: {SM_MED}pt")
         # status button
         points_row = QHBoxLayout()
         points_row.addWidget(self.point_display)
@@ -190,14 +204,12 @@ class SpellingBeeUI(QDialog):
 
         ulspacer = QLabel("")
         set_label_bold(ulspacer)
-        # ulspacer.setStyleSheet("font-weight: bold; font-size: 24pt")
         self.upper_left_letter = QLabel("UL")
         set_letter_label_style(self.upper_left_letter)
         self.upper_right_letter = QLabel("UR")
         set_letter_label_style(self.upper_right_letter)
         urspacer = QLabel("")
         set_label_bold(urspacer)
-        # urspacer.setStyleSheet("font-weight: bold; font-size: 24pt")
         top_row = QHBoxLayout()
         top_row.addWidget(ulspacer)
         top_row.addWidget(self.upper_left_letter)
@@ -209,33 +221,31 @@ class SpellingBeeUI(QDialog):
         top_row.setStretchFactor(urspacer, 1)
         gb_layout.addRow(top_row)
 
+        self.centre_left_letter = QLabel("CL")
+        set_letter_label_style(self.centre_left_letter)
         self.central_letter = QLabel("X")
-        self.central_letter.setStyleSheet("font-weight: bold; color: purple; background: yellow; font-size: 36pt")
+        self.central_letter.setStyleSheet(f"{FONT_BOLD} {LARGE_FONT} color: purple; background: yellow")
         self.central_letter.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
         self.central_letter.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignHCenter)
-        self.central_left_letter = QLabel("CL")
-        set_letter_label_style(self.central_left_letter, 36)
-        self.central_right_letter = QLabel("CR")
-        set_letter_label_style(self.central_right_letter, 36)
+        self.centre_right_letter = QLabel("CR")
+        set_letter_label_style(self.centre_right_letter)
         middle_row = QHBoxLayout()
-        middle_row.addWidget(self.central_left_letter)
+        middle_row.addWidget(self.centre_left_letter)
         middle_row.addWidget(self.central_letter)
-        middle_row.addWidget(self.central_right_letter)
-        middle_row.setStretchFactor(self.central_left_letter, 2)
+        middle_row.addWidget(self.centre_right_letter)
+        middle_row.setStretchFactor(self.centre_left_letter, 2)
         middle_row.setStretchFactor(self.central_letter, 3)
-        middle_row.setStretchFactor(self.central_right_letter, 2)
+        middle_row.setStretchFactor(self.centre_right_letter, 2)
         gb_layout.addRow(middle_row)
 
         llspacer = QLabel("")
         set_label_bold(llspacer)
-        # llspacer.setStyleSheet("font-weight: bold; font-size: 24pt")
         self.lower_left_letter = QLabel("LL")
         set_letter_label_style(self.lower_left_letter)
         self.lower_right_letter = QLabel("LR")
         set_letter_label_style(self.lower_right_letter)
         lrspacer = QLabel("")
         set_label_bold(lrspacer)
-        # lrspacer.setStyleSheet("font-weight: bold; font-size: 24pt")
         bottom_row = QHBoxLayout()
         bottom_row.addWidget(llspacer)
         bottom_row.addWidget(self.lower_left_letter)
@@ -248,12 +258,6 @@ class SpellingBeeUI(QDialog):
         gb_layout.addRow(bottom_row)
 
         self.gb_main.setLayout(gb_layout)
-        self.populate_letter_boxes()
-
-    def populate_letter_boxes(self):
-        """Take the required letter and surround letters and enter into the proper widgets."""
-        self.central_letter.setText(self.ge.required_letter)
-        self.scramble_letters()
 
     def exit_inquiry(self):
         confirm_box, initiate_exit_button, continue_game_button = confirm_exit()
@@ -275,10 +279,10 @@ class SpellingBeeUI(QDialog):
         self.upper_right_letter.setText(next_lett)
         picked.remove(next_lett)
         next_lett = picked[random.randrange(0,4)]
-        self.central_left_letter.setText(next_lett)
+        self.centre_left_letter.setText(next_lett)
         picked.remove(next_lett)
         next_lett = picked[random.randrange(0,3)]
-        self.central_right_letter.setText(next_lett)
+        self.centre_right_letter.setText(next_lett)
         picked.remove(next_lett)
         next_lett = picked[0]
         self.lower_left_letter.setText(next_lett)
@@ -311,7 +315,7 @@ class SpellingBeeUI(QDialog):
                 plurals_msg = "Most simple PLURALS are IGNORED :p"
                 message_text = plurals_msg
                 self.lgr.info(plurals_msg)
-            # have a VALID response
+            # have a GOOD response
             elif self.ge.check_guess(entry):
                 if entry in self.ge.pangram_guesses:
                     self.pangram_responses = f"{self.pangram_responses}   {entry}"
@@ -336,7 +340,7 @@ class SpellingBeeUI(QDialog):
                 self.lgr.debug(f"valid cleaned_text = <{cleaned_text}>")
                 self.valid_response_box.append(cleaned_text)
                 self.lgr.debug(self.valid_response_box.toPlainText())
-            # have an INVALID response
+            # have an BAD response
             else:
                 if entry in self.ge.bad_letter_guesses:
                     self.bad_letter_responses = f"{self.bad_letter_responses}   {entry}"
@@ -344,14 +348,12 @@ class SpellingBeeUI(QDialog):
                     self.invalid_responses.append(entry)
                     self.invalid_responses.sort()
                 if self.bad_letter_responses:
-                    # special font settings for bad/missing letters
-                    regular_font_weight = self.invalid_response_box.fontWeight()
-                    self.lgr.debug(f"current invalid response box font weight = {regular_font_weight}")
+                    # special font setting for reporting missing central letter or using unavailable letters
                     self.invalid_response_box.setFontItalic(True)
                     self.invalid_response_box.setPlainText(self.bad_letter_responses)
                     self.invalid_response_box.setFontItalic(False)
                 self.invalid_response_box.append("Other:")
-                str_resp = (str(self.invalid_responses)).replace(" ", "  ")
+                str_resp = (str(self.invalid_responses)).replace(" ", "   ")
                 self.lgr.debug(f"invalid str_resp = <{str_resp}>")
                 cleaned_text = str_resp.translate(cleaner)
                 self.lgr.debug(f"invalid cleaned_text = <{cleaned_text}>")
@@ -359,9 +361,9 @@ class SpellingBeeUI(QDialog):
                 self.lgr.debug(self.invalid_response_box.toPlainText())
                 message_text = " :("
             if self.ge.required_letter not in entry:
-                message_text = " Missing Central letter!"
+                message_text = " MISSING Central letter!"
             if self.ge.check_bad_letter(entry):
-                message_text = f" BAD letter '{self.ge.bad_letter}'!"
+                message_text = f" UNAVAILABLE letter '{self.ge.bad_letter}' :o"
             # send a message
             self.message_box.setText(message_text)
             # clear the current response
