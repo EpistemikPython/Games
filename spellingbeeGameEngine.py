@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-23"
+__updated__ = "2025-09-24"
 
 import random
 import string
@@ -24,7 +24,7 @@ import all_words
 
 MIN_WORD_LENGTH = 4
 MAX_WORD_LENGTH = 21
-PANGRAM_BONUS = 7
+PANGRAM_LENGTH = 7
 
 cleaner = str.maketrans('', '', string.punctuation)
 
@@ -36,7 +36,7 @@ def eligible_pangram(word:str, logger:logging.Logger=None) -> bool:
             return False
         if lett not in result:
             result += lett
-    if len(result) == 7:
+    if len(result) == PANGRAM_LENGTH:
         if logger:
             logger.info(f">> {clean_word} is a potential Pangram!")
         return True
@@ -233,7 +233,6 @@ class GameEngine:
             save_to_json("potential_pangrams_not_in_pangram_list", check)
         else:
             self._lgr.info("All potential pangram words in pangram list!")
-
 # END class GameEngine
 
 
