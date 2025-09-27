@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-25"
+__updated__ = "2025-09-26"
 
 from sys import argv
 from PySide6 import QtCore
@@ -50,6 +50,7 @@ def display_info():
     infobox.setIcon(QMessageBox.Icon.Information)
     infobox.setStyleSheet(SMALL_FONT)
     infobox.setText(INFO_TEXT)
+    # infobox.setMinimumWidth(960) # DOES NOTHING... ?!
     infobox.exec()
     return
 
@@ -142,7 +143,7 @@ class SpellingBeeUI(QDialog):
 
         self.central_letter.setText(self.ge.required_letter)
         self.scramble_letters()
-        # use this and the game size changes around for some reason??
+        # this makes the game change size during play... for some reason!!??
         # layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
         self.setLayout(layout)
 
