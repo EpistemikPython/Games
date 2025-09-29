@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-26"
+__updated__ = "2025-09-27"
 
 from sys import argv
 from PySide6 import QtCore
@@ -98,7 +98,7 @@ class SpellingBeeUI(QDialog):
 
         self.ge.start_game()
 
-        self.status_info = QLabel(centred_string(Level.Beginning.name + "  :)"))
+        self.status_info = QLabel(centred_string(PointLevel.Beginning.name+"  :)"))
         self.status_info.setStyleSheet(f"{FONT_BOLD} {FONT_ITALIC} font-size: {MED_LRG}pt; color: goldenrod; background: cyan")
 
         self.current_response = ""
@@ -173,19 +173,19 @@ class SpellingBeeUI(QDialog):
         # number of points
         self.point_display = QLabel("000")
         self.point_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: green")
-        pdivider = QLabel("/")
-        set_label_bold(pdivider, SM_MED)
+        pdiv = QLabel(" /")
+        set_label_bold(pdiv, SM_MED)
         ptotal_display = QLabel(str(self.ge.maximum_points))
         ptotal_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: purple")
-        point_label = QLabel("   points")
+        point_label = QLabel(" points")
         point_label.setStyleSheet(f"font-size: {SM_MED}pt")
         pspacer = QLabel("      ")
         set_label_bold(pspacer, MED_LRG)
         # word count
         self.count_display = QLabel("000")
         self.count_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: green")
-        cdivider = QLabel("/")
-        set_label_bold(cdivider, SM_MED)
+        cdiv = QLabel(" /")
+        set_label_bold(cdiv, SM_MED)
         ctotal_display = QLabel(str(self.ge.total_num_answers))
         ctotal_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: purple")
         count_label = QLabel(" words")
@@ -193,12 +193,12 @@ class SpellingBeeUI(QDialog):
         # status button
         points_row = QHBoxLayout()
         points_row.addWidget(self.point_display)
-        points_row.addWidget(pdivider)
+        points_row.addWidget(pdiv)
         points_row.addWidget(ptotal_display)
         points_row.addWidget(point_label)
         points_row.addWidget(pspacer)
         points_row.addWidget(self.count_display)
-        points_row.addWidget(cdivider)
+        points_row.addWidget(cdiv)
         points_row.addWidget(ctotal_display)
         points_row.addWidget(count_label)
         gb_layout.addRow(points_row)
@@ -308,12 +308,12 @@ class SpellingBeeUI(QDialog):
             self.lgr.info(f"Current response is: '{entry}'")
             # check if already tried
             if entry in self.ge.good_guesses:
-                message_text = f" Already have '{entry}' ;)"
+                message_text = f" Already have '{entry}'  ;)"
             elif entry in self.ge.bad_word_guesses or entry in self.ge.bad_letter_guesses:
-                message_text = f" Already tried '{entry}' :("
+                message_text = f" Already tried '{entry}'  :("
             # ignore if simple plural
             elif self.ge.check_plurals(entry):
-                plurals_msg = "Most simple PLURALS are IGNORED :p"
+                plurals_msg = "Most simple PLURALS are IGNORED  :p"
                 message_text = plurals_msg
                 self.lgr.info(plurals_msg)
             # have a GOOD response
@@ -364,7 +364,7 @@ class SpellingBeeUI(QDialog):
             if self.ge.required_letter not in entry:
                 message_text = " MISSING Central letter!"
             if self.ge.check_bad_letter(entry):
-                message_text = f" UNAVAILABLE letter '{self.ge.bad_letter}' :o"
+                message_text = f" UNAVAILABLE letter '{self.ge.bad_letter}'  :o"
             # send a message
             self.message_box.setText(message_text)
             # clear the current response
