@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-24"
+__updated__ = "2025-09-27"
 
 import random
 import string
@@ -43,18 +43,19 @@ def eligible_pangram(word:str, logger:logging.Logger=None) -> bool:
     return False
 
 
-class Level(Enum):
+class PointLevel(Enum):
     Beginning = 0.0
     Fine      = 0.1
     Nice      = 0.2
     Good      = 0.4
+    Halfway   = 0.5
     Excellent = 0.6
     Supreme   = 0.8
     Perfect   = 1.0
 
 class GameEngine:
     def __init__(self):
-        self._lgr = log_control.get_logger()
+        self.lgr = log_control.get_logger()
         self.required_letter = ''
         self.surround_letters = []
         self.current_target = ""
@@ -62,9 +63,9 @@ class GameEngine:
         self.current_answer_list = []
         self.total_num_answers = 0
         self.all_pangrams = pangrams.pangrams
-        self._lgr.info(f"number of pangrams = {len(self.all_pangrams)}")
+        self.lgr.info(f"number of pangrams = {len(self.all_pangrams)}")
         self.all_words = all_words.all_sb_words
-        self._lgr.info(f"total number of words = {len(self.all_words)}")
+        self.lgr.info(f"total number of words = {len(self.all_words)}")
         self.pangram_guesses = []
         self.good_guesses = []
         self.num_good_guesses = 0
@@ -79,13 +80,13 @@ class GameEngine:
 
     def start_game(self):
         self.current_target = self.all_pangrams[random.randrange(0, len(self.all_pangrams))]
-        self._lgr.info(f"current target word = {self.current_target}")
+        self.lgr.info(f"current target word = {self.current_target}")
         self.required_letter = self.current_target[random.randrange(0, len(self.current_target))]
-        self._lgr.info(f"required letter = {self.required_letter}")
+        self.lgr.info(f"required letter = {self.required_letter}")
         for lett in self.current_target:
             if lett not in self.required_letter and lett not in self.surround_letters:
                 self.surround_letters.append(lett)
-        self._lgr.info(f"outer letters = {self.surround_letters}")
+        self.lgr.info(f"outer letters = {self.surround_letters}")
         self.find_maximum_points()
 
     def end_game(self):
@@ -97,7 +98,7 @@ class GameEngine:
                            "GOOD_GUESSES":self.good_guesses, "BAD_LETTER_GUESSES":self.bad_letter_guesses,
                            "BAD_WORD_GUESSES":self.bad_word_guesses, "COMPLETE_ANSWER_LIST":self.current_answer_list}
             grfile = save_to_json(f"GameRecord_{self.required_letter}_{self.current_target}", game_record)
-            self._lgr.info(f"Saved game record as: {grfile}")
+            self.lgr.info(f"Saved game record as: {grfile}")
             self.saved = True
 
     def format_guess(self, resp:str) -> str:
@@ -112,14 +113,14 @@ class GameEngine:
     def check_guess(self, resp:str) -> bool:
         """Check all letters for a good response and also see if a Pangram."""
         self.format_guess(resp)
-        self._lgr.info(f"check word '{self.current_guess}'")
+        self.lgr.info(f"check word '{self.current_guess}'")
         if self.current_guess in self.current_answer_list:
-            self._lgr.info(f"{self.current_guess} is a GOOD guess!")
+            self.lgr.info(f"{self.current_guess} is a GOOD guess!")
             self.good_guesses.append(self.current_guess)
             self.current_points = (1 if len(resp) == MIN_WORD_LENGTH else len(resp))
             self.num_good_guesses += 1
             if self.check_pangram():
-                self._lgr.info(f"{self.current_guess} is a PANGRAM!")
+                self.lgr.info(f"{self.current_guess} is a PANGRAM!")
                 self.pangram_guesses.append(self.current_guess)
                 self.current_points += len(resp) # PANGRAM_BONUS
             self.point_total += self.current_points
@@ -130,7 +131,7 @@ class GameEngine:
                 pass
             return True
 
-        self._lgr.info(f"{self.current_guess} is a BAD guess!")
+        self.lgr.info(f"{self.current_guess} is a BAD guess!")
         if not self.check_letters():
             self.bad_letter_guesses.append(self.current_guess)
             return False
@@ -175,19 +176,11 @@ class GameEngine:
 
     def get_current_level(self) -> str:
         current_point_percent = self.point_total / self.maximum_points
-        if current_point_percent >= Level.Perfect.value:
-            return Level.Perfect.name
-        if current_point_percent >= Level.Supreme.value:
-            return Level.Supreme.name
-        if current_point_percent >= Level.Excellent.value:
-            return Level.Excellent.name
-        if current_point_percent >= Level.Good.value:
-            return Level.Good.name
-        if current_point_percent >= Level.Nice.value:
-            return Level.Nice.name
-        if current_point_percent >= Level.Fine.value:
-            return Level.Fine.name
-        return Level.Beginning.name
+        for item in reversed(PointLevel):
+            # self.lgr.info(f"Point level = {item}")
+            if current_point_percent >= item.value:
+                return item.name
+        return PointLevel.Beginning.name
 
     def find_maximum_points(self) -> int:
         if self.maximum_points > 0:
@@ -200,11 +193,11 @@ class GameEngine:
                 if self.check_pangram(item):
                     point_total += len(item) # PANGRAM_BONUS
         self.current_answer_list.sort()
-        self._lgr.info(f"Maximum points = {point_total}.")
+        self.lgr.info(f"Maximum points = {point_total}.")
         self.total_num_answers = len(self.current_answer_list)
-        self._lgr.info(f"Total number of acceptable answers for '{self.required_letter}' + {self.surround_letters}"
+        self.lgr.info(f"Total number of acceptable answers for '{self.required_letter}' + {self.surround_letters}"
                        f" = {self.total_num_answers}")
-        save_to_json(f"{self.required_letter}_{self.current_target}", self.current_answer_list)
+        # save_to_json(f"{self.required_letter}_{self.current_target}", self.current_answer_list)
         self.maximum_points = point_total
         return point_total
 
@@ -224,7 +217,7 @@ class GameEngine:
         if check:
             save_to_json("pangrams_not_in_words_list", check)
         else:
-            self._lgr.info("All pangrams in word list!")
+            self.lgr.info("All pangrams in word list!")
         check.clear()
         for item in self.all_words:
             if eligible_pangram(item) and item not in self.all_pangrams:
@@ -232,7 +225,7 @@ class GameEngine:
         if check:
             save_to_json("potential_pangrams_not_in_pangram_list", check)
         else:
-            self._lgr.info("All potential pangram words in pangram list!")
+            self.lgr.info("All potential pangram words in pangram list!")
 # END class GameEngine
 
 
