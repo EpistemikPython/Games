@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-27"
+__updated__ = "2025-09-29"
 
 from sys import argv
 from PySide6 import QtCore
@@ -108,6 +108,8 @@ class SpellingBeeUI(QDialog):
         valid_label.setStyleSheet(f"{FONT_BOLD} color: green")
         self.valid_response_box = QTextEdit()
         self.valid_response_box.setReadOnly(True)
+        self.vrb_reg_font_weight = self.valid_response_box.fontWeight()
+        self.lgr.debug(f"current valid response box font weight = {self.vrb_reg_font_weight}")
 
         self.invalid_responses = []
         self.bad_letter_responses = "Bad/Missing letter:"
@@ -327,12 +329,10 @@ class SpellingBeeUI(QDialog):
                     message_text = f"{self.ge.current_points} point{"s" if len(entry) > MIN_WORD_LENGTH else ""}!"
                 if self.pangram_responses:
                     # special font settings for Pangrams
-                    regular_font_weight = self.valid_response_box.fontWeight()
-                    self.lgr.debug(f"current valid response box font weight = {regular_font_weight}")
                     self.valid_response_box.setFontWeight(QFont.Weight.Bold)
                     self.valid_response_box.setFontItalic(True)
                     self.valid_response_box.setPlainText(self.pangram_responses)
-                    self.valid_response_box.setFontWeight(regular_font_weight)
+                    self.valid_response_box.setFontWeight(self.vrb_reg_font_weight)
                     self.valid_response_box.setFontItalic(False)
                 self.valid_response_box.append("Regular:")
                 str_resp = (str(self.valid_responses)).replace(" ", "   ")
@@ -341,6 +341,14 @@ class SpellingBeeUI(QDialog):
                 self.lgr.debug(f"valid cleaned_text = <{cleaned_text}>")
                 self.valid_response_box.append(cleaned_text)
                 self.lgr.debug(self.valid_response_box.toPlainText())
+                if self.ge.point_total == self.ge.maximum_points:
+                    # END THE GAME:
+                    # accept no more input
+                    self.response_box.setReadOnly(True)
+                    # special colors
+                    self.status_info.setStyleSheet(f"{FONT_BOLD} {FONT_ITALIC} font-size: {MED_LRG}pt; color: green; background: gold")
+                    # special message
+                    message_text = "VICTORY!"
             # have an BAD response
             else:
                 if entry in self.ge.bad_letter_guesses:
@@ -349,7 +357,7 @@ class SpellingBeeUI(QDialog):
                     self.invalid_responses.append(entry)
                     self.invalid_responses.sort()
                 if self.bad_letter_responses:
-                    # special font setting for reporting missing central letter or using unavailable letters
+                    # italic font for words MISSING THE CENTRAL LETTER or USING UNAVAILABLE LETTERS
                     self.invalid_response_box.setFontItalic(True)
                     self.invalid_response_box.setPlainText(self.bad_letter_responses)
                     self.invalid_response_box.setFontItalic(False)
@@ -360,16 +368,17 @@ class SpellingBeeUI(QDialog):
                 self.lgr.debug(f"invalid cleaned_text = <{cleaned_text}>")
                 self.invalid_response_box.append(cleaned_text)
                 self.lgr.debug(self.invalid_response_box.toPlainText())
-                message_text = " :("
-            if self.ge.required_letter not in entry:
-                message_text = " MISSING Central letter!"
-            if self.ge.check_bad_letter(entry):
-                message_text = f" UNAVAILABLE letter '{self.ge.bad_letter}'  :o"
+                if self.ge.required_letter not in entry:
+                    message_text = " MISSING Central letter!"
+                elif self.ge.check_bad_letter(entry):
+                    message_text = f" UNAVAILABLE letter '{self.ge.bad_letter}'  :o"
+                else:
+                    message_text = " :("
             # send a message
             self.message_box.setText(message_text)
             # clear the current response
             self.response_box.setText("")
-            # update points, count and level
+            # update display of points, count and level
             self.point_display.setText(str(self.ge.point_total))
             self.count_display.setText(str(self.ge.num_good_guesses))
             current_level = self.ge.get_current_level()

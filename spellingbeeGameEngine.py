@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-27"
+__updated__ = "2025-09-29"
 
 import random
 import string
@@ -76,7 +76,7 @@ class GameEngine:
         self.maximum_points = 0
         self.current_points = 0
         self.saved = False
-        self.check_lists()
+        # self.check_lists()
 
     def start_game(self):
         self.current_target = self.all_pangrams[random.randrange(0, len(self.all_pangrams))]
@@ -124,11 +124,6 @@ class GameEngine:
                 self.pangram_guesses.append(self.current_guess)
                 self.current_points += len(resp) # PANGRAM_BONUS
             self.point_total += self.current_points
-            if self.point_total == self.maximum_points:
-                # End the game
-                # accept no more input
-                # special colors?
-                pass
             return True
 
         self.lgr.info(f"{self.current_guess} is a BAD guess!")
