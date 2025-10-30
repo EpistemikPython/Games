@@ -10,21 +10,21 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-29"
+__updated__ = "2025-10-30"
 
 from sys import argv
 from PySide6 import QtCore
 from PySide6.QtGui import Qt, QFont
 from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QDialog, QLabel, QPushButton,
-                               QMessageBox, QFormLayout, QTextEdit, QHBoxLayout, QFrame, QLineEdit)
+                               QMessageBox, QFormLayout, QTextEdit, QHBoxLayout, QFrame, QLineEdit, QWidget)
 from spellingbeeGameEngine import *
 
 BASIC = 8
 SMALL   = BASIC * 2
 MEDIUM  = BASIC * 3
-SM_MED  = (SMALL + MEDIUM)//2
+SM_MED  = (SMALL + MEDIUM) // 2
 LARGE   = BASIC * 4
-MED_LRG = (MEDIUM + LARGE)//2
+MED_LRG = (MEDIUM + LARGE) // 2
 SMALL_FONT  = f"font-size: {SMALL}pt;"
 MEDIUM_FONT = f"font-size: {MEDIUM}pt;"
 LARGE_FONT  = f"font-size: {LARGE}pt;"
@@ -32,7 +32,7 @@ FONT_BOLD   = "font-weight: bold;"
 FONT_ITALIC = "font-style: italic;"
 GUI_WIDTH  = MEDIUM * 24
 GUI_HEIGHT = MEDIUM * 40
-LETTERS_WIDTH = int(GUI_WIDTH / 11)
+LETTERS_WIDTH = 10
 INFO_TEXT = (" How to Play the Game:\n"
              "------------------------------------------\n"
              f"1) Enter a word (at least {MIN_WORD_LENGTH} letters) in the 'Try' box.\n\n"
@@ -59,15 +59,19 @@ def confirm_exit():
     confirm_box.setIcon(QMessageBox.Icon.Question)
     confirm_box.setStyleSheet("font-size: 18pt")
     confirm_box.setText(" Are you SURE you want to EXIT the game? ")
-    cancel_button = confirm_box.addButton(" Continue the game     :)", QMessageBox.ButtonRole.ActionRole)
+    cancel_button = confirm_box.addButton(" No - Continue the game...    :)", QMessageBox.ButtonRole.ActionRole)
     cancel_button.setStyleSheet("background: chartreuse")
-    proceed_button = confirm_box.addButton(">> PROCEED to Exit!     :o", QMessageBox.ButtonRole.ActionRole)
+    proceed_button = confirm_box.addButton(" Yes >> EXIT the game!    :o", QMessageBox.ButtonRole.ActionRole)
     proceed_button.setStyleSheet("color: yellow; background: MediumVioletRed")
     confirm_box.setDefaultButton(cancel_button)
     return confirm_box, proceed_button, cancel_button
 
-def centred_string(p:str):
-    return (" " * ((LETTERS_WIDTH-len(p)) // 2)) + p
+def centred_string(qw:QWidget, p:str) -> str:
+    wid = qw.window().size().width()
+    log_control.info(f"width = {wid}; string = '{p}'; LETTERS_WIDTH = {LETTERS_WIDTH}; string length = {len(p)}")
+    result = ( ( (wid//LETTERS_WIDTH) - len(p) ) // 2)
+    log_control.info(f"lead space = {result}")
+    return (" " * result) + p
 
 def set_letter_label_style(qlabel:QLabel, font_size:int = LARGE):
     qlabel.setStyleSheet(f"{FONT_BOLD} color: blue; background: white; font-size: {font_size}pt")
@@ -98,7 +102,7 @@ class SpellingBeeUI(QDialog):
 
         self.ge.start_game()
 
-        self.status_info = QLabel(centred_string(PointLevel.Beginning.name+"  :)"))
+        self.status_info = QLabel( centred_string(self, PointLevel.Beginning.name + "  :)") )
         self.status_info.setStyleSheet(f"{FONT_BOLD} {FONT_ITALIC} font-size: {MED_LRG}pt; color: goldenrod; background: cyan")
 
         self.current_response = ""
@@ -384,7 +388,7 @@ class SpellingBeeUI(QDialog):
             current_level = self.ge.get_current_level()
             if current_level[:4] != self.status_info.text().lstrip()[:4]:
                 self.lgr.info(f"CHANGING level to '{current_level}'")
-                self.status_info.setText(centred_string(current_level+'!'))
+                self.status_info.setText(centred_string(self, current_level + '!'))
 # END class SpellingBeeUI
 
 
