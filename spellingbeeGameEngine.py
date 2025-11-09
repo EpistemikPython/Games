@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-09-29"
+__updated__ = "2025-11-09"
 
 import random
 import string
@@ -45,11 +45,11 @@ def eligible_pangram(word:str, logger:logging.Logger=None) -> bool:
 
 class PointLevel(Enum):
     Beginning = 0.0
-    Fine      = 0.1
-    Nice      = 0.2
-    Good      = 0.4
+    Fine      = 0.125
+    Nice      = 0.25
+    Good      = 0.375
     Halfway   = 0.5
-    Excellent = 0.6
+    Excellent = 0.65
     Supreme   = 0.8
     Perfect   = 1.0
 
