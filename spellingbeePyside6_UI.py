@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-10-30"
+__updated__ = "2025-11-08"
 
 from sys import argv
 from PySide6 import QtCore
@@ -28,21 +28,21 @@ MED_LRG = (MEDIUM + LARGE) // 2
 SMALL_FONT  = f"font-size: {SMALL}pt;"
 MEDIUM_FONT = f"font-size: {MEDIUM}pt;"
 LARGE_FONT  = f"font-size: {LARGE}pt;"
+FONT_NORMAL = "font-weight: normal;"
 FONT_BOLD   = "font-weight: bold;"
 FONT_ITALIC = "font-style: italic;"
-GUI_WIDTH  = MEDIUM * 24
-GUI_HEIGHT = MEDIUM * 40
-LETTERS_WIDTH = 10
+GUI_WIDTH  = MEDIUM * 29
+GUI_HEIGHT = MEDIUM * 41
 INFO_TEXT = (" How to Play the Game:\n"
              "------------------------------------------\n"
-             f"1) Enter a word (at least {MIN_WORD_LENGTH} letters) in the 'Try' box.\n\n"
+             f"1) Using ONLY the displayed letters, enter a word (at least {MIN_WORD_LENGTH} letters long) in the 'Try' box.\n\n"
              "2) Any number of each displayed letter is allowed, "
                  "but the Central letter MUST be present in the word.\n\n"
              "3) Press ENTER to evaluate your guess.\n\n"
              "4) FYI, most simple plurals are just ignored... \n\n"
-             "5) You can press the space bar to scramble the placement of the outer letters.\n\n"
+             "5) You can press the space bar to scramble the PLACEMENT of the outer letters.\n\n"
              "6) Your Valid or Invalid guesses are displayed in the appropriate boxes.\n\n"
-             "7) Pangrams are words that use ALL seven letters (and earn DOUBLE points!)   :)\n\n"
+             "7) Pangrams are words that use ALL seven letters -- and earn DOUBLE points!\n\n"
              "8) Exit the game when you are ready and your game information will be saved.")
 
 def display_info():
@@ -66,11 +66,15 @@ def confirm_exit():
     confirm_box.setDefaultButton(cancel_button)
     return confirm_box, proceed_button, cancel_button
 
-def centred_string(qw:QWidget, p:str) -> str:
-    wid = qw.window().size().width()
-    log_control.info(f"width = {wid}; string = '{p}'; LETTERS_WIDTH = {LETTERS_WIDTH}; string length = {len(p)}")
-    result = ( ( (wid//LETTERS_WIDTH) - len(p) ) // 2)
-    log_control.info(f"lead space = {result}")
+def font_width(fontsize:int) -> int:
+    return (fontsize // 3) + 1
+
+def centred_string(qw:QWidget, fontsize:int, p:str) -> str:
+    win_wd = qw.window().size().width()
+    font_wd = font_width(fontsize)
+    log_control.info(f"width = {win_wd}; string = '{p}'; font width = {font_wd}; string length = {len(p)}")
+    result = ( ( (win_wd // font_wd) - len(p) ) // 2)
+    log_control.info(f"num lead spaces = {result}")
     return (" " * result) + p
 
 def set_letter_label_style(qlabel:QLabel, font_size:int = LARGE):
@@ -86,9 +90,9 @@ class SpellingBeeUI(QDialog):
     """UI to play the SpellingBee game."""
     def __init__(self):
         super().__init__()
-        self.title = "SpellingBee UI"
-        self.left = 240
-        self.top  = 80
+        self.title = "My SpellingBee Game"
+        self.left = 250
+        self.top  = 75
         self.width  = GUI_WIDTH
         self.height = GUI_HEIGHT
         self.size()
@@ -102,7 +106,7 @@ class SpellingBeeUI(QDialog):
 
         self.ge.start_game()
 
-        self.status_info = QLabel( centred_string(self, PointLevel.Beginning.name + "  :)") )
+        self.status_info = QLabel( centred_string(self, MED_LRG, PointLevel.Beginning.name + "  :)") )
         self.status_info.setStyleSheet(f"{FONT_BOLD} {FONT_ITALIC} font-size: {MED_LRG}pt; color: goldenrod; background: cyan")
 
         self.current_response = ""
@@ -365,7 +369,10 @@ class SpellingBeeUI(QDialog):
                     self.invalid_response_box.setFontItalic(True)
                     self.invalid_response_box.setPlainText(self.bad_letter_responses)
                     self.invalid_response_box.setFontItalic(False)
-                self.invalid_response_box.append("Other:")
+                self.lgr.info(f"previous font weight = {self.invalid_response_box.fontWeight()}")
+                self.invalid_response_box.setFontWeight(QFont.Weight.Bold)
+                self.invalid_response_box.append("NOT words:")
+                self.invalid_response_box.setFontWeight(QFont.Weight.Normal)
                 str_resp = (str(self.invalid_responses)).replace(" ", "   ")
                 self.lgr.debug(f"invalid str_resp = <{str_resp}>")
                 cleaned_text = str_resp.translate(cleaner)
@@ -388,7 +395,7 @@ class SpellingBeeUI(QDialog):
             current_level = self.ge.get_current_level()
             if current_level[:4] != self.status_info.text().lstrip()[:4]:
                 self.lgr.info(f"CHANGING level to '{current_level}'")
-                self.status_info.setText(centred_string(self, current_level + '!'))
+                self.status_info.setText(centred_string(self, MED_LRG, current_level + '!'))
 # END class SpellingBeeUI
 
 
