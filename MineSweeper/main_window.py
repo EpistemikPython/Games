@@ -1,7 +1,7 @@
 ##############################################################################################################################
 # coding=utf-8
 #
-# main.py
+# main_window.py
 #   -- MineSweeper game main window
 #
 # >> based on code by Martin Fitzpatrick @ https://github.com/pythonguis/pythonguis-examples
@@ -39,7 +39,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from widgets import PositionSquare
+from widgets import GameSquare
 
 
 # noinspection PyAttributeOutsideInit
@@ -123,7 +123,7 @@ class MainWindow(QMainWindow):
         """Add PositionSquares to the map"""
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
-                w = PositionSquare(x, y, self)
+                w = GameSquare(x, y, self)
                 self.grid.addWidget(w, y, x)
                 # Connect signal to handle expansion.
                 w.clicked.connect(self.trigger_start)

@@ -1,8 +1,8 @@
 ##############################################################################################################################
 # coding=utf-8
 #
-# widgets.py
-#   -- MineSweeper game position squares
+# game_square.py
+#   -- MineSweeper game squares
 #
 # >> based on code by Martin Fitzpatrick @ https://github.com/pythonguis/pythonguis-examples
 #
@@ -34,7 +34,7 @@ from PySide6.QtWidgets import QWidget, QMainWindow
 
 
 # noinspection PyAttributeOutsideInit
-class PositionSquare(QWidget):
+class GameSquare(QWidget):
     expandable = Signal(int, int)
     clicked = Signal()
     ohno = Signal()
