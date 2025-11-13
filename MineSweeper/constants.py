@@ -1,9 +1,21 @@
-from enum import IntEnum
+##############################################################################################################################
+# coding=utf-8
+#
+# constants.py
+#   -- MineSweeper game constants
+#
+# >> based on code by Martin Fitzpatrick @ https://github.com/pythonguis/pythonguis-examples
+#
+# Copyright (c) 2025 Mark Sattolo <epistemik@gmail.com>
 
-from PySide6.QtGui import (
-    QColor,
-    QImage,
-)
+__author_name__    = "Mark Sattolo"
+__author_email__   = "epistemik@gmail.com"
+__python_version__ = "3.10+"
+__created__ = "2025-11-12"
+__updated__ = "2025-11-13"
+
+from enum import IntEnum
+from PySide6.QtGui import (QColor, QImage)
 
 IMG_BOMB = QImage("./images/bug.png")
 IMG_FLAG = QImage("./images/flag.png")

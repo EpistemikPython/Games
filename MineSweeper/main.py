@@ -1,7 +1,25 @@
+##############################################################################################################################
+# coding=utf-8
+#
+# main.py
+#   -- MineSweeper game main window
+#
+# >> based on code by Martin Fitzpatrick @ https://github.com/pythonguis/pythonguis-examples
+#
+# Copyright (c) 2025 Mark Sattolo <epistemik@gmail.com>
+
+__author_name__    = "Mark Sattolo"
+__author_email__   = "epistemik@gmail.com"
+__python_version__ = "3.10+"
+__created__ = "2025-11-12"
+__updated__ = "2025-11-13"
+
 import random
 import sys
 import time
-
+from sys import path
+path.append("/home/marksa/git/Python/utils")
+from mhsLogging import *
 from constants import (
     IMG_BOMB,
     IMG_CLOCK,
@@ -24,24 +42,23 @@ from PySide6.QtWidgets import (
 from widgets import PositionSquare
 
 
+# noinspection PyAttributeOutsideInit
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.lgr = log_control.get_logger()
+        self.lgr.info("Initializing MainWindow")
 
-        self.b_size, self.n_mines = LEVELS[1]
+        self.b_size, self.num_mines = LEVELS[1]
 
-        w = QWidget()
-        hb = QHBoxLayout()
+        main_widget = QWidget()
+        self.status = Status.READY
 
         self.mines = QLabel()
-        self.mines.setAlignment(
-            Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
-        )
+        self.mines.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
 
         self.clock = QLabel()
-        self.clock.setAlignment(
-            Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
-        )
+        self.clock.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
 
         f = self.mines.font()
         f.setPointSize(24)
@@ -53,56 +70,60 @@ class MainWindow(QMainWindow):
         self._timer.timeout.connect(self.update_timer)
         self._timer.start(1000)  # 1 second timer
 
-        self.mines.setText("%03d" % self.n_mines)
-        self.clock.setText("000")
-
         self.button = QPushButton()
         self.button.setFixedSize(QSize(32, 32))
         self.button.setIconSize(QSize(32, 32))
         self.button.setIcon(QIcon("./images/smiley.png"))
         self.button.setFlat(True)
-
         self.button.pressed.connect(self.button_pressed)
 
+        horiz_layout = QHBoxLayout()
         label = QLabel()
         label.setPixmap(QPixmap.fromImage(IMG_BOMB))
         label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        hb.addWidget(label)
+        horiz_layout.addWidget(label)
 
-        hb.addWidget(self.mines)
-        hb.addWidget(self.button)
-        hb.addWidget(self.clock)
+        horiz_layout.addWidget(self.mines)
+        horiz_layout.addWidget(self.button)
+        horiz_layout.addWidget(self.clock)
 
         label = QLabel()
         label.setPixmap(QPixmap.fromImage(IMG_CLOCK))
         label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        hb.addWidget(label)
+        horiz_layout.addWidget(label)
 
-        vb = QVBoxLayout()
-        vb.addLayout(hb)
+        main_layout = QVBoxLayout()
+        main_layout.addLayout(horiz_layout)
 
         self.grid = QGridLayout()
         self.grid.setSpacing(5)
 
-        vb.addLayout(self.grid)
-        w.setLayout(vb)
-        self.setCentralWidget(w)
+        main_layout.addLayout(self.grid)
+        main_widget.setLayout(main_layout)
+        self.setCentralWidget(main_widget)
 
+        self.reset_game()
         self.init_map()
-        self.update_status(Status.READY)
-
         self.reset_map()
         self.update_status(Status.READY)
 
-        self.setWindowTitle("Moonsweeper")
-
+        self.setWindowTitle("MoonSweeper")
         self.show()
 
+    def reset_game(self):
+        self.lgr.info("\n\nStarting new Game!")
+        self.total_empty = self.b_size**2 - self.num_mines
+        self.total_flags = 0
+        self.total_revealed = 0
+        self.lgr.info(f"grid dim = {self.b_size}, num mines = {self.num_mines}, empty squares = {self.total_empty}")
+        self.mines.setText("%03d" % self.num_mines)
+        self.clock.setText("000")
+
     def init_map(self):
-        # Add positions to the map
+        """Add PositionSquares to the map"""
         for x in range(0, self.b_size):
             for y in range(0, self.b_size):
-                w = PositionSquare(x, y)
+                w = PositionSquare(x, y, self)
                 self.grid.addWidget(w, y, x)
                 # Connect signal to handle expansion.
                 w.clicked.connect(self.trigger_start)
@@ -118,7 +139,7 @@ class MainWindow(QMainWindow):
 
         # Add mines to the positions
         positions = []
-        while len(positions) < self.n_mines:
+        while len(positions) < self.num_mines:
             x, y = (
                 random.randint(0, self.b_size - 1),
                 random.randint(0, self.b_size - 1),
@@ -128,9 +149,9 @@ class MainWindow(QMainWindow):
                 w.is_mine = True
                 positions.append((x, y))
 
-        def get_adjacency_n(x, y):
-            positions = self.get_surrounding(x, y)
-            n_mines = sum(1 if w.is_mine else 0 for w in positions)
+        def get_adjacency_n(px, py):
+            posns = self.get_surrounding(px, py)
+            n_mines = sum(1 if ww.is_mine else 0 for ww in posns)
 
             return n_mines
 
@@ -146,7 +167,6 @@ class MainWindow(QMainWindow):
                 random.randint(0, self.b_size - 1),
                 random.randint(0, self.b_size - 1),
             )
-            w = self.grid.itemAtPosition(y, x).widget()
             # We don't want to start on a mine.
             if (x, y) not in positions:
                 w = self.grid.itemAtPosition(y, x).widget()
@@ -160,20 +180,16 @@ class MainWindow(QMainWindow):
 
     def get_surrounding(self, x, y):
         positions = []
-
         for xi in range(max(0, x - 1), min(x + 2, self.b_size)):
             for yi in range(max(0, y - 1), min(y + 2, self.b_size)):
                 positions.append(self.grid.itemAtPosition(yi, xi).widget())
-
         return positions
 
+    # restart the game
     def button_pressed(self):
-        if self.status == Status.FAILED:
-            self.update_status(Status.FAILED)
-            self.reveal_map()
-
-        elif self.status == Status.FAILED:
+        if self.status == Status.SUCCESS or self.status == Status.FAILED:
             self.update_status(Status.READY)
+            self.reset_game()
             self.reset_map()
 
     def reveal_map(self):
@@ -189,7 +205,16 @@ class MainWindow(QMainWindow):
                 if not w.is_mine:
                     w.click()
 
-    def trigger_start(self, *args):
+    def clear_check(self, x, y):
+        for xi in range(max(0, x - 1), min(x + 2, self.b_size)):
+            for yi in range(max(0, y - 1), min(y + 2, self.b_size)):
+                w = self.grid.itemAtPosition(yi, xi).widget()
+                if w.is_flagged and not w.is_mine:
+                    self.lgr.info(f"Erroneous flag at square[{x},{y}]!")
+                    return False
+        return True
+
+    def trigger_start(self):
         if self.status != Status.PLAYING:
             # First click.
             self.update_status(Status.PLAYING)
@@ -211,6 +236,8 @@ class MainWindow(QMainWindow):
 
 
 if __name__ == "__main__":
+    log_control = MhsLogger("MineSweeperLogger", con_level = DEFAULT_LOG_LEVEL)
     app = QApplication(sys.argv)
     window = MainWindow()
     app.exec()
+    log_control.info("Exit game.")
