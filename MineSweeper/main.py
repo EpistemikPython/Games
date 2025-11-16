@@ -16,15 +16,18 @@ from main_window import *
 
 if __name__ == "__main__":
     log_control.info(f"sys.argv = {sys.argv}")
-    grid_len = 16
+    grid_len = DEFAULT_GRID_LEN
     if len(sys.argv) > 1:
         grid_len = int(sys.argv[1])
+    num_mines = DEFAULT_NUM_MINES
+    if len(sys.argv) > 2:
+        num_mines = int(sys.argv[2])
     dialog = None
     app = None
     code = 0
     try:
         app = QApplication(sys.argv)
-        dialog = MineSweeperUI(grid_len)
+        dialog = MineSweeperUI(grid_len, num_mines)
         app.exec()
     except KeyboardInterrupt as mki:
         log_control.exception(mki)
