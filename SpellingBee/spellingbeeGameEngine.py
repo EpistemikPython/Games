@@ -2,7 +2,7 @@
 # coding=utf-8
 #
 # spellingbeeGameEngine.py
-#   -- SpellingBee game engine
+#   -- the SpellingBee game engine
 #
 # Copyright (c) 2025 Mark Sattolo <epistemik@gmail.com>
 
@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-11-09"
+__updated__ = "2025-11-17"
 
 import random
 import string
@@ -19,6 +19,7 @@ path.append("/home/marksa/git/Python/utils")
 from mhsUtils import *
 from mhsLogging import *
 from enum import Enum
+path.append("/home/marksa/git/Python/Games/SpellingBee/input")
 import pangrams
 import all_words
 
@@ -54,8 +55,8 @@ class PointLevel(Enum):
     Perfect   = 1.0
 
 class GameEngine:
-    def __init__(self):
-        self.lgr = log_control.get_logger()
+    def __init__(self, p_lgr:MhsLogger):
+        self.lgr = p_lgr
         self.required_letter = ''
         self.surround_letters = []
         self.current_target = ""
@@ -76,6 +77,7 @@ class GameEngine:
         self.maximum_points = 0
         self.current_points = 0
         self.saved = False
+        self.lgr.info("Initialized Game Engine")
         # self.check_lists()
 
     def start_game(self):
@@ -222,6 +224,3 @@ class GameEngine:
         else:
             self.lgr.info("All potential pangram words in pangram list!")
 # END class GameEngine
-
-
-log_control = MhsLogger(GameEngine.__name__, con_level = DEFAULT_LOG_LEVEL, con_format = FILE_FORMAT)

@@ -2,7 +2,7 @@
 # coding=utf-8
 #
 # spellingbee-pyside6-UI.py
-#   -- launch the UI to play the SpellingBee game
+#   -- the UI for the SpellingBee game
 #
 # Copyright (c) 2025 Mark Sattolo <epistemik@gmail.com>
 
@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-11-08"
+__updated__ = "2025-11-19"
 
 from sys import argv
 from PySide6 import QtCore
@@ -96,10 +96,10 @@ class SpellingBeeUI(QDialog):
         self.width  = GUI_WIDTH
         self.height = GUI_HEIGHT
         self.size()
-        self.ge = GameEngine()
 
         self.lgr = log_control.get_logger()
         self.lgr.log(DEFAULT_LOG_LEVEL, f"{self.title} runtime = {get_current_time()}")
+        self.ge = GameEngine(self.lgr)
 
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
@@ -156,6 +156,7 @@ class SpellingBeeUI(QDialog):
         # this makes the game change size during play... for some reason!!??
         # layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
         self.setLayout(layout)
+        self.show()
 
     def close(self, /):
         self.ge.end_game()
@@ -177,7 +178,7 @@ class SpellingBeeUI(QDialog):
         self.message_box.setFrame(True)
         self.message_box.setReadOnly(True)
         self.message_box.setStyleSheet(f"{SMALL_FONT} color:red")
-        # ?? TIMER
+        # TODO: add a timer?
         gb_layout.addRow(QLabel("Message: "),self.message_box)
 
         # number of points
@@ -271,6 +272,7 @@ class SpellingBeeUI(QDialog):
         self.gb_main.setLayout(gb_layout)
 
     def exit_inquiry(self):
+        """Confirm that the user wants to exit the current game."""
         confirm_box, initiate_exit_button, continue_game_button = confirm_exit()
         confirm_box.exec()
         if confirm_box.clickedButton() == initiate_exit_button:
@@ -281,7 +283,7 @@ class SpellingBeeUI(QDialog):
 
     def scramble_letters(self):
         """Change the placement of the surround letters."""
-        self.lgr.info("scramble_letters()")
+        self.lgr.debug("scramble_letters()")
         picked = self.ge.surround_letters.copy()
         next_lett = picked[random.randrange(0,6)]
         self.upper_left_letter.setText(next_lett)
@@ -315,7 +317,7 @@ class SpellingBeeUI(QDialog):
         """'Enter' key was pressed so take the current response and check if it is a valid word."""
         entry = self.response_box.text()
         if entry and len(entry) >= MIN_WORD_LENGTH:
-            self.lgr.info(f"Current response is: '{entry}'")
+            self.lgr.debug(f"Current response is: '{entry}'")
             # check if already tried
             if entry in self.ge.good_guesses:
                 message_text = f" Already have '{entry}'  ;)"
@@ -325,7 +327,7 @@ class SpellingBeeUI(QDialog):
             elif self.ge.check_plurals(entry):
                 plurals_msg = "Most simple PLURALS are IGNORED  :p"
                 message_text = plurals_msg
-                self.lgr.info(plurals_msg)
+                self.lgr.debug(plurals_msg)
             # have a GOOD response
             elif self.ge.check_guess(entry):
                 if entry in self.ge.pangram_guesses:
@@ -369,7 +371,7 @@ class SpellingBeeUI(QDialog):
                     self.invalid_response_box.setFontItalic(True)
                     self.invalid_response_box.setPlainText(self.bad_letter_responses)
                     self.invalid_response_box.setFontItalic(False)
-                self.lgr.info(f"previous font weight = {self.invalid_response_box.fontWeight()}")
+                self.lgr.debug(f"previous font weight = {self.invalid_response_box.fontWeight()}")
                 self.invalid_response_box.setFontWeight(QFont.Weight.Bold)
                 self.invalid_response_box.append("NOT words:")
                 self.invalid_response_box.setFontWeight(QFont.Weight.Normal)
@@ -399,15 +401,15 @@ class SpellingBeeUI(QDialog):
 # END class SpellingBeeUI
 
 
+log_control = MhsLogger(SpellingBeeUI.__name__, con_level = DEFAULT_LOG_LEVEL)
+
 if __name__ == "__main__":
-    log_control = MhsLogger(SpellingBeeUI.__name__, con_level = DEFAULT_LOG_LEVEL)
     dialog = None
     app = None
     code = 0
     try:
         app = QApplication(argv)
         dialog = SpellingBeeUI()
-        dialog.show()
         app.exec()
     except KeyboardInterrupt as mki:
         log_control.exception(mki)
