@@ -13,7 +13,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-11-12"
-__updated__ = "2025-11-16"
+__updated__ = "2025-11-20"
 
 from enum import IntEnum
 from PySide6.QtGui import QImage, QColor, QColorConstants
@@ -39,23 +39,23 @@ SQUARE_COLORS = {
 }
 
 # length of grid in number of squares
-MIN_GRID_LEN = 8
+MIN_GRID_LEN     = 8
 DEFAULT_GRID_LEN = 16
-LARGE_GRID_LEN = 24
-MAX_GRID_LEN = 32
+LARGE_GRID_LEN   = 24
+MAX_GRID_LEN     = 32
 
-DEFAULT_NUM_MINES = 42
+DEFAULT_NUM_MINES = 66
 
 class Status(IntEnum):
-    READY = 0
+    READY   = 0
     PLAYING = 1
-    FAILED = 2
+    FAILED  = 2
     SUCCESS = 3
 
 
 STATUS_ICONS = {
-    Status.READY:   "./images/plus.png",
-    Status.PLAYING: "./images/smiley.png",
-    Status.FAILED:  "./images/cross.png",
-    Status.SUCCESS: "./images/smiley-lol.png",
+    Status.READY:   "images/plus.png",
+    Status.PLAYING: "images/smiley.png",
+    Status.FAILED:  "images/cross.png",
+    Status.SUCCESS: "images/smiley-lol.png",
 }
