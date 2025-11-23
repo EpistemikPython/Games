@@ -18,7 +18,7 @@ __updated__ = "2025-11-20"
 from enum import IntEnum
 from PySide6.QtGui import QImage, QColor, QColorConstants
 
-IMG_BOMB         = QImage("images/bug.png")
+IMG_MINE         = QImage("images/bug.png")
 IMG_FLAG         = QImage("images/flag.png")
 IMG_BAD_FLAG     = QImage("images/mushroom.png")
 IMG_MISSING_FLAG = QImage("images/hamburger.png")
@@ -45,6 +45,10 @@ LARGE_GRID_LEN   = 24
 MAX_GRID_LEN     = 32
 
 DEFAULT_NUM_MINES = 66
+DEFAULT_SQR_LEN   = 24
+DEFAULT_INFO_DIM  = 32
+DEFAULT_FONT_PTS  = 24
+DEFAULT_SPACING   =  1
 
 class Status(IntEnum):
     READY   = 0

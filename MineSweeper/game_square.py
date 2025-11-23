@@ -13,13 +13,11 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-11-12"
-__updated__ = "2025-11-19"
+__updated__ = "2025-11-22"
 
 from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QBrush, QPainter, QPalette, QPen, QPixmap
 from PySide6.QtWidgets import QWidget, QMainWindow
-from pyasn1_modules.rfc3280 import pds_name
-
 from constants import *
 
 
@@ -32,7 +30,7 @@ class GameSquare(QWidget):
     def __init__(self, x, y, p_window:QMainWindow):
         super().__init__()
 
-        self.setFixedSize(QSize(24, 24))
+        self.setFixedSize(QSize(DEFAULT_SQR_LEN, DEFAULT_SQR_LEN))
         self.x = x
         self.y = y
         self.main_window = p_window
@@ -53,11 +51,13 @@ class GameSquare(QWidget):
         pntr.setRenderHint(QPainter.RenderHint.Antialiasing)
         rect = evt.rect()
 
+        blank = self.palette().color(QPalette.ColorRole.Window)
         if self.is_revealed or self.is_flagged:
-            color = self.palette().color(QPalette.ColorRole.Window)
-            outer, inner = color, color
+            outer, inner = QColor("lightgoldenrodyellow"), blank
+            if self.is_flagged or self.is_start or self.num_adjacent == 0:
+                outer = blank
         else:
-            outer, inner = QColor("paleturquoise"), QColor("peachpuff")
+            outer, inner = QColor("palegoldenrod"), QColor("peachpuff")
 
         pntr.fillRect(rect, QBrush(inner))
         pen = QPen(outer)
@@ -76,7 +76,7 @@ class GameSquare(QWidget):
                 pntr.drawPixmap(rect, QPixmap(IMG_MISSING_FLAG))
 
             elif self.is_mine:
-                pntr.drawPixmap(rect, QPixmap(IMG_BOMB))
+                pntr.drawPixmap(rect, QPixmap(IMG_MINE))
 
             elif self.num_adjacent > 0:
                 pen = QPen(SQUARE_COLORS[self.num_adjacent])
@@ -119,7 +119,7 @@ class GameSquare(QWidget):
         # set or remove flag
         if evt.button() == Qt.MouseButton.RightButton and not self.is_revealed:
             self.flag()
-            self.main_window.mines.setText("%03d" % (self.main_window.num_mines - self.main_window.total_flags))
+            self.main_window.mine_counter.setText("%03d" % (self.main_window.num_mines - self.main_window.total_flags))
 
         # clear out adjacent squares
         elif evt.button() == Qt.MouseButton.RightButton and self.is_revealed:

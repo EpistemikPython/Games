@@ -13,7 +13,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-11-12"
-__updated__ = "2025-11-19"
+__updated__ = "2025-11-23"
 
 import random
 import sys
@@ -35,10 +35,10 @@ class MineSweeperUI(QMainWindow):
         self.status = Status.READY
 
         self.lgr = log_control.get_logger()
-        self.lgr.info(f"Initializing {MineSweeperUI.__name__}")
+        self.lgr.info(f"Initializing {MineSweeperUI.__name__}({p_gridlen},{p_nmines})")
         self.lgr.info("Available colors:")
         for item in QColor.colorNames():
-            self.lgr.info(item)
+            self.lgr.info(f"\t{item}")
 
         if MIN_GRID_LEN <= p_gridlen <= MAX_GRID_LEN:
             self.grid_size = p_gridlen
@@ -52,46 +52,46 @@ class MineSweeperUI(QMainWindow):
             self.num_mines = num_squares // 6
             self.lgr.info(f"Illegal number of mines parameter '{p_nmines}'! Using default number of mines = {self.num_mines}")
 
-        self.mines = QLabel()
-        self.mines.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
-        f = self.mines.font()
-        f.setPointSize(24)
-        f.setWeight(QFont.Weight.Thin)
-        self.mines.setFont(f)
+        self.mine_counter = QLabel()
+        self.mine_counter.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+        std_font = self.mine_counter.font()
+        std_font.setPointSize(DEFAULT_FONT_PTS)
+        std_font.setWeight(QFont.Weight.Thin)
+        self.mine_counter.setFont(std_font)
+
+        self.reset_button = QPushButton()
+        self.reset_button.setFixedSize(QSize(DEFAULT_INFO_DIM, DEFAULT_INFO_DIM))
+        self.reset_button.setIconSize(QSize(DEFAULT_INFO_DIM, DEFAULT_INFO_DIM))
+        self.reset_button.setFlat(True)
+        self.reset_button.pressed.connect(self.button_pressed)
 
         self.clock = QLabel()
         self.clock.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
-        self.clock.setFont(f)
+        self.clock.setFont(std_font)
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_clock)
         self.timer.start(1000)  # 1 second timer
 
-        self.button = QPushButton()
-        self.button.setFixedSize(QSize(32, 32))
-        self.button.setIconSize(QSize(32, 32))
-        self.button.setIcon(QIcon(str(Status.PLAYING)))
-        self.button.setFlat(True)
-        self.button.pressed.connect(self.button_pressed)
-
-        horiz_layout = QHBoxLayout()
-        label = QLabel()
-        label.setPixmap(QPixmap.fromImage(IMG_BOMB))
-        label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        horiz_layout.addWidget(label)
-
-        horiz_layout.addWidget(self.mines)
-        horiz_layout.addWidget(self.button)
-        horiz_layout.addWidget(self.clock)
+        mine_pic = QLabel()
+        mine_pic.setPixmap(QPixmap.fromImage(IMG_MINE))
+        mine_pic.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
         self.result = QLabel()
         self.result.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        horiz_layout.addWidget(self.result)
+
+        info_layout = QHBoxLayout()
+        info_layout.addWidget(mine_pic)
+        info_layout.addWidget(self.mine_counter)
+        info_layout.addWidget(self.reset_button)
+        info_layout.addWidget(self.clock)
+        info_layout.addWidget(self.result)
 
         main_layout = QVBoxLayout()
-        main_layout.addLayout(horiz_layout)
+        main_layout.addLayout(info_layout)
         self.grid = QGridLayout()
-        self.grid.setSpacing(5)
+        self.grid.setVerticalSpacing(DEFAULT_SPACING)
+        self.grid.setHorizontalSpacing(DEFAULT_SPACING) # ?? does nothing unless main window width is modified
         main_layout.addLayout(self.grid)
 
         main_widget = QWidget()
@@ -104,8 +104,13 @@ class MineSweeperUI(QMainWindow):
         self.update_status(Status.READY)
 
         self.setWindowTitle("MineSweeper Game")
-        self.setGeometry(306, 170, self.width(), self.height())
+        # ?? only way to get the squares closer to each other seems to be to change the main window dimensions
+        std_dim = self.grid_size * (DEFAULT_SQR_LEN + DEFAULT_SPACING)
+        adj_wd = std_dim + self.grid_size
+        adj_ht = std_dim + (DEFAULT_INFO_DIM * 2)
+        self.setGeometry(306, 170, adj_wd, adj_ht)
         self.show()
+        self.lgr.info(f"main window: width = {self.width()}, height = {self.height()}")
 
     def reset_game(self):
         self.lgr.info("\n\nStarting new Game!")
@@ -113,7 +118,7 @@ class MineSweeperUI(QMainWindow):
         self.total_flags = 0
         self.total_revealed = 0
         self.lgr.info(f"grid size = {self.grid_size}, num mines = {self.num_mines}, empty squares = {self.total_empty}")
-        self.mines.setText("%03d" % self.num_mines)
+        self.mine_counter.setText("%03d" % self.num_mines)
         self.clock.setText("000")
         self.result.setPixmap(QPixmap.fromImage(IMG_PLAY))
 
@@ -133,49 +138,49 @@ class MineSweeperUI(QMainWindow):
         # clear all previous mines
         for x in range(0, self.grid_size):
             for y in range(0, self.grid_size):
-                self.grid.itemAtPosition(y, x).widget().reset()
+                self.grid.itemAtPosition(y,x).widget().reset()
 
         # add requested number of mines
         mine_posns = []
         while len(mine_posns) < self.num_mines:
-            x, y = (
+            x,y = (
                 random.randint(0, self.grid_size-1),
                 random.randint(0, self.grid_size-1),
             )
-            if (x, y) not in mine_posns:
-                self.grid.itemAtPosition(y, x).widget().is_mine = True
-                mine_posns.append((x, y))
+            if (x,y) not in mine_posns:
+                self.grid.itemAtPosition(y,x).widget().is_mine = True
+                mine_posns.append((x,y))
 
         def get_num_adjacent(px, py):
-            posns = self.get_surrounding(px, py)
+            posns = self.get_surrounding(px,py)
             return sum(1 if ww.is_mine else 0 for ww in posns)
 
         # record number of adjacent mines for each square
         for x in range(0, self.grid_size):
             for y in range(0, self.grid_size):
-                self.grid.itemAtPosition(y, x).widget().num_adjacent = get_num_adjacent(x, y)
+                self.grid.itemAtPosition(y,x).widget().num_adjacent = get_num_adjacent(x,y)
 
         # place a random starting marker
         while True:
-            x, y = (
+            x,y = (
                 random.randint(0, self.grid_size-1),
                 random.randint(0, self.grid_size-1),
             )
             # don't start on a mine
-            if (x, y) not in mine_posns:
-                self.grid.itemAtPosition(y, x).widget().is_start = True
+            if (x,y) not in mine_posns:
+                self.grid.itemAtPosition(y,x).widget().is_start = True
 
                 # reveal all squares around this where there are no mines
-                for sq in self.get_surrounding(x, y):
+                for sq in self.get_surrounding(x,y):
                     if not sq.is_mine:
                         sq.click()
                 break
 
     def get_surrounding(self, x, y):
         positions = []
-        for xi in range(max(0, x - 1), min(x + 2, self.grid_size)):
-            for yi in range(max(0, y - 1), min(y + 2, self.grid_size)):
-                positions.append(self.grid.itemAtPosition(yi, xi).widget())
+        for xi in range(max(0, x-1), min(x+2, self.grid_size)):
+            for yi in range(max(0, y-1), min(y+2, self.grid_size)):
+                positions.append(self.grid.itemAtPosition(yi,xi).widget())
         return positions
 
     # restart after a completed game
@@ -188,29 +193,31 @@ class MineSweeperUI(QMainWindow):
     def reveal_map(self):
         for x in range(0, self.grid_size):
             for y in range(0, self.grid_size):
-                self.grid.itemAtPosition(y, x).widget().reveal()
+                self.grid.itemAtPosition(y,x).widget().reveal()
 
     def expand_reveal(self, x, y):
-        for xi in range(max(0, x - 1), min(x + 2, self.grid_size)):
-            for yi in range(max(0, y - 1), min(y + 2, self.grid_size)):
-                sqw = self.grid.itemAtPosition(yi, xi).widget()
+        for xi in range(max(0, x-1), min(x+2, self.grid_size)):
+            for yi in range(max(0, y-1), min(y+2, self.grid_size)):
+                sqw = self.grid.itemAtPosition(yi,xi).widget()
                 if not sqw.is_mine:
                     sqw.click()
 
     def clear_check(self, x, y):
         """Make sure no adjacent squares are erroneous flags and all adjacent mines are flagged."""
-        for xi in range(max(0, x - 1), min(x + 2, self.grid_size)):
-            for yi in range(max(0, y - 1), min(y + 2, self.grid_size)):
-                sqw = self.grid.itemAtPosition(yi, xi).widget()
+        self.lgr.info(f"Clearing out around square[{x},{y}]")
+        result = True
+        for xi in range(max(0, x-1), min(x+2, self.grid_size)):
+            for yi in range(max(0, y-1), min(y+2, self.grid_size)):
+                sqw = self.grid.itemAtPosition(yi,xi).widget()
                 if sqw.is_flagged and not sqw.is_mine:
                     self.lgr.info(f"ERRONEOUS flag at square[{xi},{yi}]!")
                     sqw.bad_flag = True
-                    return False
+                    result = False
                 if sqw.is_mine and not sqw.is_flagged:
                     self.lgr.info(f"MISSING flag at square[{xi},{yi}]!")
                     sqw.missing_flag = True
-                    return False
-        return True
+                    result = False
+        return result
 
     def start_game(self):
         if self.status != Status.PLAYING:
@@ -221,7 +228,7 @@ class MineSweeperUI(QMainWindow):
 
     def update_status(self, p_status):
         self.status = p_status
-        self.button.setIcon(QIcon(STATUS_ICONS[self.status]))
+        self.reset_button.setIcon(QIcon(STATUS_ICONS[self.status]))
 
     def update_clock(self):
         if self.status == Status.PLAYING:
@@ -235,7 +242,7 @@ class MineSweeperUI(QMainWindow):
         self.update_status(Status.FAILED)
         self.result.setPixmap(QPixmap.fromImage(IMG_LOSE))
         self.reveal_map()
-        self.lgr.info("FAILED! :(\n\n")
+        self.lgr.info("FAILED :( \n\n")
 
     def game_win(self):
         self.update_status(Status.SUCCESS)
