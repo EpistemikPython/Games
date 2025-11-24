@@ -10,13 +10,13 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-11-19"
+__updated__ = "2025-11-23"
 
 from sys import argv
 from PySide6 import QtCore
 from PySide6.QtGui import Qt, QFont
-from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QDialog, QLabel, QPushButton,
-                               QMessageBox, QFormLayout, QTextEdit, QHBoxLayout, QFrame, QLineEdit, QWidget)
+from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QLabel, QPushButton, QMainWindow,
+                               QMessageBox, QFormLayout, QTextEdit, QHBoxLayout, QFrame, QLineEdit, QWidget )
 from spellingbeeGameEngine import *
 
 BASIC = 8
@@ -86,7 +86,7 @@ def set_label_bold(qlabel:QLabel, font_size:int = MEDIUM):
     qlabel.setStyleSheet(f"{FONT_BOLD} font-size: {font_size}pt")
 
 # noinspection PyAttributeOutsideInit
-class SpellingBeeUI(QDialog):
+class SpellingBeeUI(QMainWindow):
     """UI to play the SpellingBee game."""
     def __init__(self):
         super().__init__()
@@ -141,21 +141,23 @@ class SpellingBeeUI(QDialog):
         bottom_row.addWidget(info_btn, alignment = Qt.AlignmentFlag.AlignLeft)
         bottom_row.addWidget(exit_btn, alignment = Qt.AlignmentFlag.AlignRight)
 
-        self.create_game_box()
-        layout = QVBoxLayout()
-        layout.addWidget(self.status_info)
-        layout.addWidget(self.gb_main)
-        layout.addWidget(valid_label)
-        layout.addWidget(self.valid_response_box)
-        layout.addWidget(invalid_label)
-        layout.addWidget(self.invalid_response_box)
-        layout.addLayout(bottom_row)
+        main_layout = QVBoxLayout()
+        main_layout.addWidget(self.status_info)
+        self.game_box = self.create_game_box()
+        main_layout.addWidget(self.game_box)
+        main_layout.addWidget(valid_label)
+        main_layout.addWidget(self.valid_response_box)
+        main_layout.addWidget(invalid_label)
+        main_layout.addWidget(self.invalid_response_box)
+        main_layout.addLayout(bottom_row)
 
+        # place the target word letters
         self.central_letter.setText(self.ge.required_letter)
         self.scramble_letters()
-        # this makes the game change size during play... for some reason!!??
-        # layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
-        self.setLayout(layout)
+
+        main_widget = QWidget()
+        main_widget.setLayout(main_layout)
+        self.setCentralWidget(main_widget)
         self.show()
 
     def close(self, /):
@@ -163,7 +165,7 @@ class SpellingBeeUI(QDialog):
         super().close()
 
     def create_game_box(self):
-        self.gb_main = QGroupBox()
+        grp_box = QGroupBox()
         gb_layout = QFormLayout()
 
         self.response_box = QLineEdit()
@@ -269,7 +271,8 @@ class SpellingBeeUI(QDialog):
         bottom_row.setStretchFactor(lrspacer, 1)
         gb_layout.addRow(bottom_row)
 
-        self.gb_main.setLayout(gb_layout)
+        grp_box.setLayout(gb_layout)
+        return grp_box
 
     def exit_inquiry(self):
         """Confirm that the user wants to exit the current game."""
