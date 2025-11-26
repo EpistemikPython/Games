@@ -13,7 +13,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-11-12"
-__updated__ = "2025-11-23"
+__updated__ = "2025-11-25"
 
 import random
 import sys
@@ -55,7 +55,7 @@ class MineSweeperUI(QMainWindow):
         self.mine_counter = QLabel()
         self.mine_counter.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
         std_font = self.mine_counter.font()
-        std_font.setPointSize(DEFAULT_FONT_PTS)
+        std_font.setPointSize(INFO_FONT_PTS)
         std_font.setWeight(QFont.Weight.Thin)
         self.mine_counter.setFont(std_font)
 
@@ -103,12 +103,12 @@ class MineSweeperUI(QMainWindow):
         self.reset_map()
         self.update_status(Status.READY)
 
-        self.setWindowTitle("MineSweeper Game")
+        self.setWindowTitle("BugFinder Game")
         # ?? only way to get the squares closer to each other seems to be to change the main window dimensions
         std_dim = self.grid_size * (DEFAULT_SQR_LEN + DEFAULT_SPACING)
         adj_wd = std_dim + self.grid_size
         adj_ht = std_dim + (DEFAULT_INFO_DIM * 2)
-        self.setGeometry(306, 170, adj_wd, adj_ht)
+        self.setGeometry(300, 120, adj_wd, adj_ht)
         self.show()
         self.lgr.info(f"main window: width = {self.width()}, height = {self.height()}")
 

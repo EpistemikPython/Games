@@ -13,7 +13,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-11-12"
-__updated__ = "2025-11-22"
+__updated__ = "2025-11-25"
 
 from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QBrush, QPainter, QPalette, QPen, QPixmap
@@ -53,11 +53,11 @@ class GameSquare(QWidget):
 
         blank = self.palette().color(QPalette.ColorRole.Window)
         if self.is_revealed or self.is_flagged:
-            outer, inner = QColor("lightgoldenrodyellow"), blank
+            outer, inner = QColor("palegoldenrod"), blank
             if self.is_flagged or self.is_start or self.num_adjacent == 0:
                 outer = blank
         else:
-            outer, inner = QColor("palegoldenrod"), QColor("peachpuff")
+            outer, inner = QColor("lightpink"), QColor("peachpuff")
 
         pntr.fillRect(rect, QBrush(inner))
         pen = QPen(outer)
@@ -82,6 +82,7 @@ class GameSquare(QWidget):
                 pen = QPen(SQUARE_COLORS[self.num_adjacent])
                 pntr.setPen(pen)
                 f = pntr.font()
+                f.setPointSize(NUM_ADJ_FONT_PTS)
                 f.setBold(True)
                 pntr.setFont(f)
                 pntr.drawText(rect, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter, str(self.num_adjacent))
