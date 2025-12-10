@@ -13,7 +13,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-11-12"
-__updated__ = "2025-11-25"
+__updated__ = "2025-12-10"
 
 import random
 import sys
@@ -36,9 +36,9 @@ class MineSweeperUI(QMainWindow):
 
         self.lgr = log_control.get_logger()
         self.lgr.info(f"Initializing {MineSweeperUI.__name__}({p_gridlen},{p_nmines})")
-        self.lgr.info("Available colors:")
-        for item in QColor.colorNames():
-            self.lgr.info(f"\t{item}")
+        # self.lgr.info("Available colors:")
+        # for item in QColor.colorNames():
+        #     self.lgr.info(f"\t{item}")
 
         if MIN_GRID_LEN <= p_gridlen <= MAX_GRID_LEN:
             self.grid_size = p_gridlen
@@ -46,7 +46,7 @@ class MineSweeperUI(QMainWindow):
             self.grid_size = DEFAULT_GRID_LEN
             self.lgr.info(f"Illegal grid size parameter '{p_gridlen}'! Using default grid size = {DEFAULT_GRID_LEN}")
         num_squares = self.grid_size**2
-        if (num_squares//3) >= p_nmines >= (num_squares//8):
+        if (num_squares // 3) >= p_nmines >= (num_squares // 8):
             self.num_mines = p_nmines
         else:
             self.num_mines = num_squares // 6
@@ -71,7 +71,7 @@ class MineSweeperUI(QMainWindow):
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_clock)
-        self.timer.start(1000)  # 1 second timer
+        self.timer.start(1000) # update each 1 second
 
         mine_pic = QLabel()
         mine_pic.setPixmap(QPixmap.fromImage(IMG_MINE))
@@ -102,8 +102,8 @@ class MineSweeperUI(QMainWindow):
         self.init_map()
         self.reset_map()
         self.update_status(Status.READY)
+        self.setWindowTitle(f"BugFinder Game:  {self.grid_size}x{self.grid_size} with {self.num_mines} mines.")
 
-        self.setWindowTitle("BugFinder Game")
         # ?? only way to get the squares closer to each other seems to be to change the main window dimensions
         std_dim = self.grid_size * (DEFAULT_SQR_LEN + DEFAULT_SPACING)
         adj_wd = std_dim + self.grid_size
@@ -183,8 +183,8 @@ class MineSweeperUI(QMainWindow):
                 positions.append(self.grid.itemAtPosition(yi,xi).widget())
         return positions
 
-    # restart after a completed game
     def button_pressed(self):
+        # restart after a completed game
         if self.status == Status.SUCCESS or self.status == Status.FAILED:
             self.update_status(Status.READY)
             self.reset_game()
