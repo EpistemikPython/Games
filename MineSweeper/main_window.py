@@ -13,7 +13,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-11-12"
-__updated__ = "2025-12-10"
+__updated__ = "2025-12-15"
 
 import random
 import sys
@@ -22,7 +22,7 @@ from sys import path
 path.append("/home/marksa/git/Python/utils")
 from mhsLogging import *
 from PySide6.QtCore import QSize, Qt, QTimer
-from PySide6.QtGui import QFont, QIcon, QPixmap
+from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import QApplication, QGridLayout, QHBoxLayout, QLabel, QMainWindow, QPushButton, QVBoxLayout, QWidget
 from constants import *
 from game_square import GameSquare
@@ -56,14 +56,14 @@ class MineSweeperUI(QMainWindow):
         self.mine_counter.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
         std_font = self.mine_counter.font()
         std_font.setPointSize(INFO_FONT_PTS)
-        std_font.setWeight(QFont.Weight.Thin)
+        # std_font.setWeight(QFont.Weight.Thin)
         self.mine_counter.setFont(std_font)
 
         self.reset_button = QPushButton()
         self.reset_button.setFixedSize(QSize(DEFAULT_INFO_DIM, DEFAULT_INFO_DIM))
         self.reset_button.setIconSize(QSize(DEFAULT_INFO_DIM, DEFAULT_INFO_DIM))
         self.reset_button.setFlat(True)
-        self.reset_button.pressed.connect(self.button_pressed)
+        self.reset_button.pressed.connect(self.restart_game)
 
         self.clock = QLabel()
         self.clock.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
@@ -118,8 +118,8 @@ class MineSweeperUI(QMainWindow):
         self.total_flags = 0
         self.total_revealed = 0
         self.lgr.info(f"grid size = {self.grid_size}, num mines = {self.num_mines}, empty squares = {self.total_empty}")
-        self.mine_counter.setText("%03d" % self.num_mines)
-        self.clock.setText("000")
+        self.mine_counter.setText("{:^3}".format(self.num_mines))
+        self.clock.setText("0")
         self.result.setPixmap(QPixmap.fromImage(IMG_PLAY))
 
     def init_map(self):
@@ -183,8 +183,8 @@ class MineSweeperUI(QMainWindow):
                 positions.append(self.grid.itemAtPosition(yi,xi).widget())
         return positions
 
-    def button_pressed(self):
-        # restart after a completed game
+    def restart_game(self):
+        """Restart after a completed game."""
         if self.status == Status.SUCCESS or self.status == Status.FAILED:
             self.update_status(Status.READY)
             self.reset_game()
@@ -235,8 +235,7 @@ class MineSweeperUI(QMainWindow):
             if self.isMinimized(): # pause the timer when minimized
                 self.timer_start_numsecs += 1
             num_secs = int(time.time()) - self.timer_start_numsecs
-            # self.lgr.info(f"num secs = {num_secs}")
-            self.clock.setText("%03d" % num_secs)
+            self.clock.setText("{:^5}".format(num_secs))
 
     def game_loss(self):
         self.update_status(Status.FAILED)
