@@ -13,7 +13,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-11-12"
-__updated__ = "2025-11-25"
+__updated__ = "2025-12-12"
 
 from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QBrush, QPainter, QPalette, QPen, QPixmap
@@ -33,8 +33,8 @@ class GameSquare(QWidget):
         self.setFixedSize(QSize(DEFAULT_SQR_LEN, DEFAULT_SQR_LEN))
         self.x = x
         self.y = y
-        self.main_window = p_window
-        self.lgr = self.main_window.lgr
+        self.gui = p_window
+        self.lgr = self.gui.lgr
 
     def reset(self):
         self.is_start = False
@@ -94,19 +94,19 @@ class GameSquare(QWidget):
         """Set a new flag or remove the existing flag from this square."""
         if self.is_flagged:
             self.is_flagged = False
-            self.main_window.total_flags -= 1
+            self.gui.total_flags -= 1
         else:
             self.is_flagged = True
-            self.main_window.total_flags += 1
+            self.gui.total_flags += 1
             self.clicked.emit()
         self.update()
-        self.lgr.info(f"current num flags = {self.main_window.total_flags}")
+        self.lgr.info(f"current num flags = {self.gui.total_flags}")
 
     def reveal(self):
         self.is_revealed = True
-        self.main_window.total_revealed += 1
-        if self.main_window.status == Status.PLAYING:
-            self.lgr.debug(f"current num revealed = {self.main_window.total_revealed}")
+        self.gui.total_revealed += 1
+        if self.gui.status == Status.PLAYING:
+            self.lgr.debug(f"current num revealed = {self.gui.total_revealed}")
         self.update()
 
     def click(self):
@@ -120,12 +120,12 @@ class GameSquare(QWidget):
         # set or remove flag
         if evt.button() == Qt.MouseButton.RightButton and not self.is_revealed:
             self.flag()
-            self.main_window.mine_counter.setText("%03d" % (self.main_window.num_mines - self.main_window.total_flags))
+            self.gui.mine_counter.setText("{:^3}".format(self.gui.num_mines-self.gui.total_flags))
 
         # clear out adjacent squares
         elif evt.button() == Qt.MouseButton.RightButton and self.is_revealed:
             # make sure NO errors in adjacent squares
-            if not self.main_window.clear_check(self.x, self.y):
+            if not self.gui.clear_check(self.x, self.y):
                 self.ohno.emit()
                 return
             self.expandable.emit(self.x, self.y)
@@ -135,12 +135,12 @@ class GameSquare(QWidget):
         elif evt.button() == Qt.MouseButton.LeftButton:
             if self.is_flagged:
                 self.is_flagged = False
-                self.main_window.total_flags -= 1
+                self.gui.total_flags -= 1
             self.click()
             if self.is_mine:
                 self.ohno.emit()
                 return
 
         # see if the game is won
-        if self.main_window.total_revealed == self.main_window.total_empty and self.main_window.total_flags == self.main_window.num_mines:
-            self.main_window.game_win()
+        if self.gui.total_revealed == self.gui.total_empty and self.gui.total_flags == self.gui.num_mines:
+            self.gui.game_win()
