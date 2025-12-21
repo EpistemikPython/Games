@@ -10,12 +10,13 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-11-13"
-__updated__ = "2025-12-03"
+__updated__ = "2025-12-11"
 
-from main_window import *
+import sys
+from main_window import log_control, DEFAULT_GRID_LEN, DEFAULT_NUM_MINES, QApplication, MineSweeperUI
 
 if __name__ == "__main__":
-    log_control.info(f"sys.argv = {sys.argv}")
+    log_control.debug(f"sys.argv = {sys.argv}")
     grid_len = DEFAULT_GRID_LEN
     if len(sys.argv) > 1 and sys.argv[1].isnumeric():
         grid_len = int(sys.argv[1])
@@ -33,7 +34,7 @@ if __name__ == "__main__":
         log_control.exception(mki)
         code = 13
     except ValueError as mve:
-        log_control.error(mve)
+        log_control.exception(mve)
         code = 27
     except Exception as mex:
         log_control.exception(mex)
