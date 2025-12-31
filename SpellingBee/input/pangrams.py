@@ -4997,7 +4997,6 @@ pangrams = [
     "URGENCY",
     "URINATE",
     "URINATION",
-    "USERGROUP",
     "USERNAME",
     "UTENSIL",
     "UTILITARIAN",
