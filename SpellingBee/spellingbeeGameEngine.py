@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-11-17"
+__updated__ = "2025-12-24"
 
 import random
 import string
@@ -20,8 +20,8 @@ from mhsUtils import *
 from mhsLogging import *
 from enum import Enum
 path.append("/home/marksa/git/Python/Games/SpellingBee/input")
-import pangrams
-import all_words
+from pangrams import pangrams
+from all_spellbee_words import all_sb_words as allwords
 
 MIN_WORD_LENGTH = 4
 MAX_WORD_LENGTH = 21
@@ -63,10 +63,6 @@ class GameEngine:
         self.current_guess = ""
         self.current_answer_list = []
         self.total_num_answers = 0
-        self.all_pangrams = pangrams.pangrams
-        self.lgr.info(f"number of pangrams = {len(self.all_pangrams)}")
-        self.all_words = all_words.all_sb_words
-        self.lgr.info(f"total number of words = {len(self.all_words)}")
         self.pangram_guesses = []
         self.good_guesses = []
         self.num_good_guesses = 0
@@ -77,11 +73,12 @@ class GameEngine:
         self.maximum_points = 0
         self.current_points = 0
         self.saved = False
+        self.lgr.debug(f"number of pangrams = {len(pangrams)}; total number of words = {len(allwords)}")
         self.lgr.info("Initialized Game Engine")
         # self.check_lists()
 
     def start_game(self):
-        self.current_target = self.all_pangrams[random.randrange(0, len(self.all_pangrams))]
+        self.current_target = pangrams[random.randrange(0, len(pangrams))]
         self.lgr.info(f"current target word = {self.current_target}")
         self.required_letter = self.current_target[random.randrange(0, len(self.current_target))]
         self.lgr.info(f"required letter = {self.required_letter}")
@@ -157,7 +154,7 @@ class GameEngine:
     def check_word(self, word:str = "") -> bool:
         if not word:
             word = self.current_guess
-        if word in self.all_words:
+        if word in allwords:
             return True
         return False
 
@@ -183,7 +180,7 @@ class GameEngine:
         if self.maximum_points > 0:
             return self.maximum_points
         point_total = 0
-        for item in self.all_words:
+        for item in allwords:
             if self.check_letters(item) and self.check_word(item) and not self.check_plurals(item):
                 point_total += ( 1 if len(item) == MIN_WORD_LENGTH else len(item) )
                 self.current_answer_list.append(item)
@@ -201,23 +198,23 @@ class GameEngine:
     def check_plurals(self, word:str = "") -> bool:
         if not word:
             word = self.current_guess
-        if word not in self.current_answer_list and ( (word[-1] == 'S' and word[:-1] in self.all_words) or
-                (word[-2:] == "ES" and word[:-2] in self.all_words) ):
+        if word not in self.current_answer_list and ( (word[-1] == 'S' and word[:-1] in allwords) or
+                (word[-2:] == "ES" and word[:-2] in allwords) ):
             return True
         return False
 
     def check_lists(self):
         check = []
-        for item in self.all_pangrams:
-            if item not in self.all_words:
+        for item in pangrams:
+            if item not in allwords:
                 check.append(item)
         if check:
             save_to_json("pangrams_not_in_words_list", check)
         else:
             self.lgr.info("All pangrams in word list!")
         check.clear()
-        for item in self.all_words:
-            if eligible_pangram(item) and item not in self.all_pangrams:
+        for item in allwords:
+            if eligible_pangram(item) and item not in pangrams:
                 check.append(item)
         if check:
             save_to_json("potential_pangrams_not_in_pangram_list", check)
