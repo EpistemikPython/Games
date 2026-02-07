@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-11-23"
+__updated__ = "2025-11-24"
 
 from sys import argv
 from PySide6 import QtCore
@@ -203,7 +203,7 @@ class SpellingBeeUI(QMainWindow):
         ctotal_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: purple")
         count_label = QLabel(" words")
         count_label.setStyleSheet(f"font-size: {SM_MED}pt")
-        # status button
+        # status row
         points_row = QHBoxLayout()
         points_row.addWidget(self.point_display)
         points_row.addWidget(pdiv)
@@ -362,7 +362,7 @@ class SpellingBeeUI(QMainWindow):
                     self.status_info.setStyleSheet(f"{FONT_BOLD} {FONT_ITALIC} font-size: {MED_LRG}pt; color: green; background: gold")
                     # special message
                     message_text = "VICTORY!"
-            # have an BAD response
+            # have a BAD response
             else:
                 if entry in self.ge.bad_letter_guesses:
                     self.bad_letter_responses = f"{self.bad_letter_responses}   {entry}"
