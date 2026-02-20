@@ -4,19 +4,19 @@
 # spellingbee-pyside6-UI.py
 #   -- the UI for the SpellingBee game
 #
-# Copyright (c) 2025 Mark Sattolo <epistemik@gmail.com>
+# Copyright (c) 2026 Mark Sattolo <epistemik@gmail.com>
 
 __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-11-24"
+__updated__ = "2026-02-20"
 
 from sys import argv
 from PySide6 import QtCore
 from PySide6.QtGui import Qt, QFont
 from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QLabel, QPushButton, QMainWindow,
-                               QMessageBox, QFormLayout, QTextEdit, QHBoxLayout, QFrame, QLineEdit, QWidget )
+                               QMessageBox, QFormLayout, QTextEdit, QHBoxLayout, QFrame, QLineEdit, QWidget)
 from spellingbeeGameEngine import *
 
 BASIC = 8
@@ -31,13 +31,15 @@ LARGE_FONT  = f"font-size: {LARGE}pt;"
 FONT_NORMAL = "font-weight: normal;"
 FONT_BOLD   = "font-weight: bold;"
 FONT_ITALIC = "font-style: italic;"
-GUI_WIDTH  = MEDIUM * 29
+GUI_WIDTH = MEDIUM * 29
 GUI_HEIGHT = MEDIUM * 41
+GUI_LEFT = 250
+GUI_TOP = 75
 INFO_TEXT = (" How to Play the Game:\n"
              "------------------------------------------\n"
              f"1) Using ONLY the displayed letters, enter a word (at least {MIN_WORD_LENGTH} letters long) in the 'Try' box.\n\n"
              "2) Any number of each displayed letter is allowed, "
-                 "but the Central letter MUST be present in the word.\n\n"
+             "but the Central letter MUST be present in the word.\n\n"
              "3) Press ENTER to evaluate your guess.\n\n"
              "4) FYI, most simple plurals are just ignored... \n\n"
              "5) You can press the space bar to scramble the PLACEMENT of the outer letters.\n\n"
@@ -66,12 +68,10 @@ def confirm_exit():
     confirm_box.setDefaultButton(cancel_button)
     return confirm_box, proceed_button, cancel_button
 
-def font_width(fontsize:int) -> int:
-    return (fontsize // 3) + 1
 
 def centred_string(qw:QWidget, fontsize:int, p:str) -> str:
     win_wd = qw.window().size().width()
-    font_wd = font_width(fontsize)
+    font_wd = (fontsize // 3) + 1
     log_control.info(f"width = {win_wd}; string = '{p}'; font width = {font_wd}; string length = {len(p)}")
     result = ( ( (win_wd // font_wd) - len(p) ) // 2)
     log_control.info(f"num lead spaces = {result}")
@@ -90,23 +90,16 @@ class SpellingBeeUI(QMainWindow):
     """UI to play the SpellingBee game."""
     def __init__(self):
         super().__init__()
-        self.title = "My SpellingBee Game"
-        self.left = 250
-        self.top  = 75
-        self.width  = GUI_WIDTH
-        self.height = GUI_HEIGHT
-        self.size()
+        self.setWindowTitle("My SpellingBee Game")
+        self.setGeometry(GUI_LEFT, GUI_TOP, GUI_WIDTH, GUI_HEIGHT)
 
         self.lgr = log_control.get_logger()
-        self.lgr.log(DEFAULT_LOG_LEVEL, f"{self.title} runtime = {get_current_time()}")
+        self.lgr.log(DEFAULT_LOG_LEVEL, f"{self.windowTitle()} runtime = {get_current_time()}")
+
         self.ge = GameEngine(self.lgr)
-
-        self.setWindowTitle(self.title)
-        self.setGeometry(self.left, self.top, self.width, self.height)
-
         self.ge.start_game()
 
-        self.status_info = QLabel( centred_string(self, MED_LRG, PointLevel.Beginning.name + "  :)") )
+        self.status_info = QLabel(centred_string(self, MED_LRG, PointLevel.Beginning.name+"  :)"))
         self.status_info.setStyleSheet(f"{FONT_BOLD} {FONT_ITALIC} font-size: {MED_LRG}pt; color: goldenrod; background: cyan")
 
         self.current_response = ""
@@ -132,6 +125,8 @@ class SpellingBeeUI(QMainWindow):
         info_btn.setAutoDefault(False)
         info_btn.setDefault(False)
         info_btn.clicked.connect(display_info)
+        # TODO: add a timer here?
+        # TODO: new game button
         exit_btn = QPushButton("Exit Game?")
         exit_btn.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: red; background: yellow")
         exit_btn.setAutoDefault(False)
@@ -143,8 +138,7 @@ class SpellingBeeUI(QMainWindow):
 
         main_layout = QVBoxLayout()
         main_layout.addWidget(self.status_info)
-        self.game_box = self.create_game_box()
-        main_layout.addWidget(self.game_box)
+        main_layout.addWidget(self.create_game_box())
         main_layout.addWidget(valid_label)
         main_layout.addWidget(self.valid_response_box)
         main_layout.addWidget(invalid_label)
@@ -180,8 +174,7 @@ class SpellingBeeUI(QMainWindow):
         self.message_box.setFrame(True)
         self.message_box.setReadOnly(True)
         self.message_box.setStyleSheet(f"{SMALL_FONT} color:red")
-        # TODO: add a timer?
-        gb_layout.addRow(QLabel("Message: "),self.message_box)
+        gb_layout.addRow(QLabel("Message: "), self.message_box)
 
         # number of points
         self.point_display = QLabel("000")
@@ -335,7 +328,7 @@ class SpellingBeeUI(QMainWindow):
             elif self.ge.check_guess(entry):
                 if entry in self.ge.pangram_guesses:
                     self.pangram_responses = f"{self.pangram_responses}   {entry}"
-                    message_text  = f"Pangram! {self.ge.current_points} points."
+                    message_text = f"Pangram! {self.ge.current_points} points."
                 else:
                     self.valid_responses.append(entry)
                     self.valid_responses.sort()
@@ -418,7 +411,7 @@ if __name__ == "__main__":
         log_control.exception(mki)
         code = 13
     except ValueError as mve:
-        log_control.error(mve)
+        log_control.exception(mve)
         code = 27
     except Exception as mex:
         log_control.exception(mex)
