@@ -7,18 +7,17 @@
 # >> based on code by Martin Fitzpatrick
 #    @ https://github.com/pythonguis/pythonguis-examples/tree/master/pyside6/demos/minesweeper
 #
-# Copyright (c) 2025 Mark Sattolo <epistemik@gmail.com>
+# Copyright (c) 2026 Mark Sattolo <epistemik@gmail.com>
 
 __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-11-12"
-__updated__ = "2025-12-15"
+__updated__ = "2026-02-20"
 
 import random
-import sys
 import time
-from sys import path
+from sys import path, argv
 path.append("/home/marksa/git/Python/utils")
 from mhsLogging import *
 from PySide6.QtCore import QSize, Qt, QTimer
@@ -69,9 +68,9 @@ class MineSweeperUI(QMainWindow):
         self.clock.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
         self.clock.setFont(std_font)
 
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update_clock)
-        self.timer.start(1000) # update each 1 second
+        timer = QTimer()
+        timer.timeout.connect(self.update_clock)
+        timer.start(1000) # update each 1 second
 
         mine_pic = QLabel()
         mine_pic.setPixmap(QPixmap.fromImage(IMG_MINE))
@@ -254,7 +253,26 @@ class MineSweeperUI(QMainWindow):
 log_control = MhsLogger("MineSweeper", con_level = DEFAULT_LOG_LEVEL)
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = MineSweeperUI()
-    app.exec()
+    window = None
+    app = None
+    code = 0
+    try:
+        app = QApplication(argv)
+        window = MineSweeperUI()
+        app.exec()
+    except KeyboardInterrupt as mki:
+        log_control.exception(mki)
+        code = 13
+    except ValueError as mve:
+        log_control.exception(mve)
+        code = 27
+    except Exception as mex:
+        log_control.exception(mex)
+        code = 66
+    finally:
+        if window:
+            window.close()
+        if app:
+            app.exit(code)
     log_control.info("Exit game.")
+    exit(code)
