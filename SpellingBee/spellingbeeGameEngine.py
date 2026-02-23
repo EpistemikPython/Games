@@ -4,13 +4,13 @@
 # spellingbeeGameEngine.py
 #   -- the SpellingBee game engine
 #
-# Copyright (c) 2025 Mark Sattolo <epistemik@gmail.com>
+# Copyright (c) 2026 Mark Sattolo <epistemik@gmail.com>
 
 __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2025-12-24"
+__updated__ = "2026-02-23"
 
 import random
 import string
@@ -21,7 +21,7 @@ from mhsLogging import *
 from enum import Enum
 path.append("/home/marksa/git/Python/Games/SpellingBee/input")
 from pangrams import pangrams
-from all_spellbee_words import all_sb_words as allwords
+from all_words import all_sb_words as allwords
 
 MIN_WORD_LENGTH = 4
 MAX_WORD_LENGTH = 21
@@ -171,7 +171,6 @@ class GameEngine:
     def get_current_level(self) -> str:
         current_point_percent = self.point_total / self.maximum_points
         for item in reversed(PointLevel):
-            # self.lgr.info(f"Point level = {item}")
             if current_point_percent >= item.value:
                 return item.name
         return PointLevel.Beginning.name
@@ -191,14 +190,13 @@ class GameEngine:
         self.total_num_answers = len(self.current_answer_list)
         self.lgr.info(f"Total number of acceptable answers for '{self.required_letter}' + {self.surround_letters}"
                        f" = {self.total_num_answers}")
-        # save_to_json(f"{self.required_letter}_{self.current_target}", self.current_answer_list)
         self.maximum_points = point_total
         return point_total
 
     def check_plurals(self, word:str = "") -> bool:
         if not word:
             word = self.current_guess
-        if word not in self.current_answer_list and ( (word[-1] == 'S' and word[:-1] in allwords) or
+        if word not in self.current_answer_list and ( (word[-1] == 'S' and word[-2] != 'S' and word[:-1] in allwords) or
                 (word[-2:] == "ES" and word[:-2] in allwords) ):
             return True
         return False
