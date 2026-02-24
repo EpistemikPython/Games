@@ -10,11 +10,12 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2026-02-20"
+__updated__ = "2026-02-24"
 
+import time
 from sys import argv
-from PySide6 import QtCore
-from PySide6.QtGui import Qt, QFont
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QLabel, QPushButton, QMainWindow,
                                QMessageBox, QFormLayout, QTextEdit, QHBoxLayout, QFrame, QLineEdit, QWidget)
 from spellingbeeGameEngine import *
@@ -31,9 +32,9 @@ LARGE_FONT  = f"font-size: {LARGE}pt;"
 FONT_NORMAL = "font-weight: normal;"
 FONT_BOLD   = "font-weight: bold;"
 FONT_ITALIC = "font-style: italic;"
-GUI_WIDTH = MEDIUM * 29
-GUI_HEIGHT = MEDIUM * 41
-GUI_LEFT = 250
+GUI_WIDTH = MEDIUM * 34
+GUI_HEIGHT = MEDIUM * 40
+GUI_LEFT = 520
 GUI_TOP = 75
 INFO_TEXT = (" How to Play the Game:\n"
              "------------------------------------------\n"
@@ -80,7 +81,7 @@ def centred_string(qw:QWidget, fontsize:int, p:str) -> str:
 def set_letter_label_style(qlabel:QLabel, font_size:int = LARGE):
     qlabel.setStyleSheet(f"{FONT_BOLD} color: blue; background: white; font-size: {font_size}pt")
     qlabel.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Sunken)
-    qlabel.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignHCenter)
+    qlabel.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter)
 
 def set_label_bold(qlabel:QLabel, font_size:int = MEDIUM):
     qlabel.setStyleSheet(f"{FONT_BOLD} font-size: {font_size}pt")
@@ -102,7 +103,6 @@ class SpellingBeeUI(QMainWindow):
         self.status_info = QLabel(centred_string(self, MED_LRG, PointLevel.Beginning.name+"  :)"))
         self.status_info.setStyleSheet(f"{FONT_BOLD} {FONT_ITALIC} font-size: {MED_LRG}pt; color: goldenrod; background: cyan")
 
-        self.current_response = ""
         self.valid_responses = []
         self.pangram_responses = "Pangrams:"
         valid_label = QLabel("Valid responses:")
@@ -119,13 +119,22 @@ class SpellingBeeUI(QMainWindow):
         self.invalid_response_box = QTextEdit()
         self.invalid_response_box.setReadOnly(True)
 
-        # buttons: instructions, exit
+        # buttons: instructions, timer, exit
         info_btn = QPushButton("Game Instructions")
         info_btn.setStyleSheet(f"{MEDIUM_FONT} color: yellow; background: blue")
         info_btn.setAutoDefault(False)
         info_btn.setDefault(False)
         info_btn.clicked.connect(display_info)
-        # TODO: add a timer here?
+
+        self.clock = QLabel()
+        self.clock.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+        cfont = valid_label.font()
+        cfont.setPointSize(MEDIUM)
+        self.clock.setFont(cfont)
+        timer = QTimer(self)
+        timer.timeout.connect(self.update_clock)
+        timer.start(1000) # update each 1 second
+
         # TODO: new game button
         exit_btn = QPushButton("Exit Game?")
         exit_btn.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: red; background: yellow")
@@ -133,8 +142,9 @@ class SpellingBeeUI(QMainWindow):
         exit_btn.setDefault(False)
         exit_btn.clicked.connect(self.exit_inquiry)
         bottom_row = QHBoxLayout()
-        bottom_row.addWidget(info_btn, alignment = Qt.AlignmentFlag.AlignLeft)
-        bottom_row.addWidget(exit_btn, alignment = Qt.AlignmentFlag.AlignRight)
+        bottom_row.addWidget(info_btn)
+        bottom_row.addWidget(self.clock)
+        bottom_row.addWidget(exit_btn)
 
         main_layout = QVBoxLayout()
         main_layout.addWidget(self.status_info)
@@ -152,6 +162,8 @@ class SpellingBeeUI(QMainWindow):
         main_widget = QWidget()
         main_widget.setLayout(main_layout)
         self.setCentralWidget(main_widget)
+        # start the timer
+        self.timer_start_numsecs = int(time.time())
         self.show()
 
     def close(self, /):
@@ -233,7 +245,7 @@ class SpellingBeeUI(QMainWindow):
         self.central_letter = QLabel("X")
         self.central_letter.setStyleSheet(f"{FONT_BOLD} {LARGE_FONT} color: purple; background: yellow")
         self.central_letter.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
-        self.central_letter.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter | QtCore.Qt.AlignmentFlag.AlignHCenter)
+        self.central_letter.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter)
         self.centre_right_letter = QLabel("CR")
         set_letter_label_style(self.centre_right_letter)
         middle_row = QHBoxLayout()
@@ -266,6 +278,14 @@ class SpellingBeeUI(QMainWindow):
 
         grp_box.setLayout(gb_layout)
         return grp_box
+
+    def update_clock(self):
+        if self.isMinimized(): # pause the timer when minimized
+            self.timer_start_numsecs += 1
+        num_secs = int(time.time()) - self.timer_start_numsecs
+        # self.lgr.info(f"num_secs = {num_secs}")
+        # self.clock.setText("{:^5}".format(num_secs))
+        self.clock.setText("{:02}:{:02}:{:02}".format(num_secs // 3600, num_secs % 3600 // 60, num_secs % 3600 % 60))
 
     def exit_inquiry(self):
         """Confirm that the user wants to exit the current game."""
