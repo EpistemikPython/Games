@@ -13,7 +13,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-11-12"
-__updated__ = "2026-02-20"
+__updated__ = "2026-02-24"
 
 import random
 import time
@@ -26,6 +26,7 @@ from PySide6.QtWidgets import QApplication, QGridLayout, QHBoxLayout, QLabel, QM
 from constants import *
 from game_square import GameSquare
 
+DEBUG = False
 
 # noinspection PyAttributeOutsideInit
 class MineSweeperUI(QMainWindow):
@@ -35,9 +36,10 @@ class MineSweeperUI(QMainWindow):
 
         self.lgr = log_control.get_logger()
         self.lgr.info(f"Initializing {MineSweeperUI.__name__}({p_gridlen},{p_nmines})")
-        # self.lgr.info("Available colors:")
-        # for item in QColor.colorNames():
-        #     self.lgr.info(f"\t{item}")
+        if DEBUG:
+            self.lgr.info("Available colors:")
+            for item in QColor.colorNames():
+                self.lgr.info(f"\t{item}")
 
         if MIN_GRID_LEN <= p_gridlen <= MAX_GRID_LEN:
             self.grid_size = p_gridlen
@@ -55,7 +57,6 @@ class MineSweeperUI(QMainWindow):
         self.mine_counter.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
         std_font = self.mine_counter.font()
         std_font.setPointSize(INFO_FONT_PTS)
-        # std_font.setWeight(QFont.Weight.Thin)
         self.mine_counter.setFont(std_font)
 
         self.reset_button = QPushButton()
@@ -68,7 +69,7 @@ class MineSweeperUI(QMainWindow):
         self.clock.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
         self.clock.setFont(std_font)
 
-        timer = QTimer()
+        timer = QTimer(self)
         timer.timeout.connect(self.update_clock)
         timer.start(1000) # update each 1 second
 
@@ -246,7 +247,6 @@ class MineSweeperUI(QMainWindow):
         self.update_status(Status.SUCCESS)
         self.result.setPixmap(QPixmap.fromImage(IMG_WIN))
         self.lgr.info("Victory!")
-
 # END class MineSweeperUI
 
 
