@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2026-02-23"
+__updated__ = "2026-02-26"
 
 import random
 import string
@@ -54,30 +54,31 @@ class PointLevel(Enum):
     Supreme   = 0.8
     Perfect   = 1.0
 
+# noinspection PyAttributeOutsideInit
 class GameEngine:
     def __init__(self, p_lgr:MhsLogger):
         self.lgr = p_lgr
-        self.required_letter = ''
-        self.surround_letters = []
-        self.current_target = ""
-        self.current_guess = ""
-        self.current_answer_list = []
+        # self.required_letter = ''
+        # self.current_target = ""
+        self.lgr.debug(f"number of pangrams = {len(pangrams)}; total number of words = {len(allwords)}")
+        self.lgr.info("Initialized Game Engine.")
+        # self.check_lists()
+
+    def start(self):
+        self.current_guess = ''
+        self.bad_letter = ''
         self.total_num_answers = 0
-        self.pangram_guesses = []
-        self.good_guesses = []
         self.num_good_guesses = 0
-        self.bad_letter = ""
-        self.bad_word_guesses = []
-        self.bad_letter_guesses = []
         self.point_total = 0
         self.maximum_points = 0
         self.current_points = 0
         self.saved = False
-        self.lgr.debug(f"number of pangrams = {len(pangrams)}; total number of words = {len(allwords)}")
-        self.lgr.info("Initialized Game Engine")
-        # self.check_lists()
-
-    def start_game(self):
+        self.current_answer_list = []
+        self.pangram_guesses = []
+        self.good_guesses = []
+        self.bad_word_guesses = []
+        self.bad_letter_guesses = []
+        self.surround_letters = []
         self.current_target = pangrams[random.randrange(0, len(pangrams))]
         self.lgr.info(f"current target word = {self.current_target}")
         self.required_letter = self.current_target[random.randrange(0, len(self.current_target))]
@@ -87,8 +88,9 @@ class GameEngine:
                 self.surround_letters.append(lett)
         self.lgr.info(f"outer letters = {self.surround_letters}")
         self.find_maximum_points()
+        self.lgr.info("Started a Game.")
 
-    def end_game(self):
+    def save_record(self):
         # save game record
         if not self.saved and self.good_guesses:
             self.good_guesses.sort()

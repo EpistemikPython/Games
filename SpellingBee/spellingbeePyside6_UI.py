@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2026-02-24"
+__updated__ = "2026-02-26"
 
 import time
 from sys import argv
@@ -60,15 +60,16 @@ def display_info():
 def confirm_exit():
     confirm_box = QMessageBox()
     confirm_box.setIcon(QMessageBox.Icon.Question)
-    confirm_box.setStyleSheet("font-size: 18pt")
-    confirm_box.setText(" Are you SURE you want to EXIT the game? ")
-    cancel_button = confirm_box.addButton(" No - Continue the game...    :)", QMessageBox.ButtonRole.ActionRole)
+    confirm_box.setStyleSheet("font-size: 16pt")
+    confirm_box.setText("    Are you SURE you want to EXIT the game?    ")
+    cancel_button = confirm_box.addButton("No - Continue the game...", QMessageBox.ButtonRole.ActionRole)
     cancel_button.setStyleSheet("background: chartreuse")
-    proceed_button = confirm_box.addButton(" Yes >> EXIT the game!    :o", QMessageBox.ButtonRole.ActionRole)
-    proceed_button.setStyleSheet("color: yellow; background: MediumVioletRed")
+    newgame_button = confirm_box.addButton("Yes >> START a NEW game!", QMessageBox.ButtonRole.ActionRole)
+    newgame_button.setStyleSheet("color: green; background: MediumVioletRed")
+    proceed_button = confirm_box.addButton("Yes >> EXIT the game.", QMessageBox.ButtonRole.ActionRole)
+    proceed_button.setStyleSheet("color: yellow; background: purple")
     confirm_box.setDefaultButton(cancel_button)
-    return confirm_box, proceed_button, cancel_button
-
+    return confirm_box, proceed_button, cancel_button, newgame_button
 
 def centred_string(qw:QWidget, fontsize:int, p:str) -> str:
     win_wd = qw.window().size().width()
@@ -98,12 +99,10 @@ class SpellingBeeUI(QMainWindow):
         self.lgr.log(DEFAULT_LOG_LEVEL, f"{self.windowTitle()} runtime = {get_current_time()}")
 
         self.ge = GameEngine(self.lgr)
-        self.ge.start_game()
 
-        self.status_info = QLabel(centred_string(self, MED_LRG, PointLevel.Beginning.name+"  :)"))
+        self.status_info = QLabel()
         self.status_info.setStyleSheet(f"{FONT_BOLD} {FONT_ITALIC} font-size: {MED_LRG}pt; color: goldenrod; background: cyan")
 
-        self.valid_responses = []
         self.pangram_responses = "Pangrams:"
         valid_label = QLabel("Valid responses:")
         valid_label.setStyleSheet(f"{FONT_BOLD} color: green")
@@ -112,14 +111,13 @@ class SpellingBeeUI(QMainWindow):
         self.vrb_reg_font_weight = self.valid_response_box.fontWeight()
         self.lgr.debug(f"current valid response box font weight = {self.vrb_reg_font_weight}")
 
-        self.invalid_responses = []
         self.bad_letter_responses = "Bad/Missing letter:"
         invalid_label = QLabel("INVALID responses:")
         invalid_label.setStyleSheet(f"{FONT_BOLD} color: red")
         self.invalid_response_box = QTextEdit()
         self.invalid_response_box.setReadOnly(True)
 
-        # buttons: instructions, timer, exit
+        # buttons: instructions, timer, exit/new game
         info_btn = QPushButton("Game Instructions")
         info_btn.setStyleSheet(f"{MEDIUM_FONT} color: yellow; background: blue")
         info_btn.setAutoDefault(False)
@@ -135,16 +133,15 @@ class SpellingBeeUI(QMainWindow):
         timer.timeout.connect(self.update_clock)
         timer.start(1000) # update each 1 second
 
-        # TODO: new game button
-        exit_btn = QPushButton("Exit Game?")
-        exit_btn.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: red; background: yellow")
-        exit_btn.setAutoDefault(False)
-        exit_btn.setDefault(False)
-        exit_btn.clicked.connect(self.exit_inquiry)
+        newgame_exit_btn = QPushButton("Exit Game?")
+        newgame_exit_btn.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: red; background: yellow")
+        newgame_exit_btn.setAutoDefault(False)
+        newgame_exit_btn.setDefault(False)
+        newgame_exit_btn.clicked.connect(self.exit_inquiry)
         bottom_row = QHBoxLayout()
         bottom_row.addWidget(info_btn)
         bottom_row.addWidget(self.clock)
-        bottom_row.addWidget(exit_btn)
+        bottom_row.addWidget(newgame_exit_btn)
 
         main_layout = QVBoxLayout()
         main_layout.addWidget(self.status_info)
@@ -155,19 +152,35 @@ class SpellingBeeUI(QMainWindow):
         main_layout.addWidget(self.invalid_response_box)
         main_layout.addLayout(bottom_row)
 
-        # place the target word letters
-        self.central_letter.setText(self.ge.required_letter)
-        self.scramble_letters()
-
         main_widget = QWidget()
         main_widget.setLayout(main_layout)
         self.setCentralWidget(main_widget)
-        # start the timer
-        self.timer_start_numsecs = int(time.time())
+        self.reset()
         self.show()
 
+    def reset(self):
+        self.lgr.info("\n\nStarting a NEW Game!")
+        self.ge.start()
+        self.status_info.setText(centred_string(self, MED_LRG, PointLevel.Beginning.name + "  :)"))
+        self.clock.setText("00")
+        self.valid_responses = []
+        self.invalid_responses = []
+        self.point_display.setText("000")
+        self.ptotal_display.setText(str(self.ge.maximum_points))
+        self.count_display.setText("000")
+        self.ctotal_display.setText(str(self.ge.total_num_answers))
+        self.response_box.setText("")
+        self.message_box.setText("")
+        self.valid_response_box.setText("")
+        self.invalid_response_box.setText("")
+        # place the target word letters
+        self.central_letter.setText(self.ge.required_letter)
+        self.scramble_letters()
+        # start the timer
+        self.timer_start_numsecs = int(time.time())
+
     def close(self, /):
-        self.ge.end_game()
+        self.ge.save_record()
         super().close()
 
     def create_game_box(self):
@@ -189,35 +202,35 @@ class SpellingBeeUI(QMainWindow):
         gb_layout.addRow(QLabel("Message: "), self.message_box)
 
         # number of points
-        self.point_display = QLabel("000")
+        self.point_display = QLabel()
         self.point_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: green")
         pdiv = QLabel(" /")
         set_label_bold(pdiv, SM_MED)
-        ptotal_display = QLabel(str(self.ge.maximum_points))
-        ptotal_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: purple")
+        self.ptotal_display = QLabel()
+        self.ptotal_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: purple")
         point_label = QLabel(" points")
         point_label.setStyleSheet(f"font-size: {SM_MED}pt")
         pspacer = QLabel("      ")
         set_label_bold(pspacer, MED_LRG)
         # word count
-        self.count_display = QLabel("000")
+        self.count_display = QLabel()
         self.count_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: green")
         cdiv = QLabel(" /")
         set_label_bold(cdiv, SM_MED)
-        ctotal_display = QLabel(str(self.ge.total_num_answers))
-        ctotal_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: purple")
+        self.ctotal_display = QLabel()
+        self.ctotal_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: purple")
         count_label = QLabel(" words")
         count_label.setStyleSheet(f"font-size: {SM_MED}pt")
         # status row
         points_row = QHBoxLayout()
         points_row.addWidget(self.point_display)
         points_row.addWidget(pdiv)
-        points_row.addWidget(ptotal_display)
+        points_row.addWidget(self.ptotal_display)
         points_row.addWidget(point_label)
         points_row.addWidget(pspacer)
         points_row.addWidget(self.count_display)
         points_row.addWidget(cdiv)
-        points_row.addWidget(ctotal_display)
+        points_row.addWidget(self.ctotal_display)
         points_row.addWidget(count_label)
         gb_layout.addRow(points_row)
 
@@ -283,19 +296,22 @@ class SpellingBeeUI(QMainWindow):
         if self.isMinimized(): # pause the timer when minimized
             self.timer_start_numsecs += 1
         num_secs = int(time.time()) - self.timer_start_numsecs
-        # self.lgr.info(f"num_secs = {num_secs}")
-        # self.clock.setText("{:^5}".format(num_secs))
         self.clock.setText("{:02}:{:02}:{:02}".format(num_secs // 3600, num_secs % 3600 // 60, num_secs % 3600 % 60))
 
     def exit_inquiry(self):
         """Confirm that the user wants to exit the current game."""
-        confirm_box, initiate_exit_button, continue_game_button = confirm_exit()
+        confirm_box, initiate_exit_button, continue_game_button, new_game_button = confirm_exit()
         confirm_box.exec()
         if confirm_box.clickedButton() == initiate_exit_button:
             self.lgr.info("Proceed to EXIT!")
             self.close()
         elif confirm_box.clickedButton() == continue_game_button:
             self.lgr.info("Continue the game...")
+        elif confirm_box.clickedButton() == new_game_button:
+            self.lgr.info("Exit and START a new game.")
+            self.ge.save_record()
+            # new game
+            self.reset()
 
     def scramble_letters(self):
         """Change the placement of the surround letters."""
