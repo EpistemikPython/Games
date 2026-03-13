@@ -1,16 +1,16 @@
 ##############################################################################################################################
 # coding=utf-8
 #
-# spellingbeeGameEngine.py
-#   -- the SpellingBee game internal data and procedures
+# wordleGameEngine.py
+#   -- the Wordle game internal data and procedures
 #
 # Copyright (c) 2026 Mark Sattolo <epistemik@gmail.com>
 
 __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
-__created__ = "2025-08-18"
-__updated__ = "2026-03-02"
+__created__ = "2026-03-05"
+__updated__ = "2026-03-05"
 
 import random
 import string
@@ -20,8 +20,7 @@ from mhsUtils import *
 from mhsLogging import *
 from enum import Enum
 path.append("/home/marksa/git/Python/Games/SpellingBee/input")
-from pangrams import pangrams
-from all_words import all_sb_words as allwords
+from wordle_words import all_wordle_words as allwords
 
 MIN_WORD_LENGTH = 4
 MAX_WORD_LENGTH = 21
@@ -57,10 +56,10 @@ class PointLevel(Enum):
 
 # noinspection PyAttributeOutsideInit
 class GameEngine:
-    """The SpellingBee game internal data and procedures."""
+    """The Wordle game internal data and procedures."""
     def __init__(self, p_lgr:MhsLogger):
         self.lgr = p_lgr
-        self.lgr.debug(f"number of pangrams = {len(pangrams)}; total number of words = {len(allwords)}")
+        self.lgr.debug(f"number of possible words = {len(allwords)}")
         self.lgr.info("Initialized Game Engine.")
         if GE_DEBUG:
             self.check_lists()

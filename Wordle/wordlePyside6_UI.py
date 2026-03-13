@@ -1,16 +1,16 @@
 ##############################################################################################################################
 # coding=utf-8
 #
-# spellingbee-pyside6-UI.py
-#   -- the UI for the SpellingBee game
+# wordlePyside6_UI.py
+#   -- the UI for the Wordle game
 #
 # Copyright (c) 2026 Mark Sattolo <epistemik@gmail.com>
 
 __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
-__created__ = "2025-08-18"
-__updated__ = "2026-03-02"
+__created__ = "2026-03-05"
+__updated__ = "2026-03-05"
 
 import time
 from sys import argv
@@ -18,7 +18,7 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QLabel, QPushButton, QMainWindow,
                                QMessageBox, QFormLayout, QTextEdit, QHBoxLayout, QFrame, QLineEdit, QWidget)
-from spellingbeeGameEngine import *
+from wordleGameEngine import *
 
 BASIC = 8
 SMALL   = BASIC * 2
@@ -86,11 +86,11 @@ def set_label_bold(qlabel:QLabel, font_size:int = MEDIUM):
     qlabel.setStyleSheet(f"{FONT_BOLD} font-size: {font_size}pt")
 
 # noinspection PyAttributeOutsideInit
-class SpellingBeeUI(QMainWindow):
-    """UI to play the SpellingBee game."""
+class WordleUI(QMainWindow):
+    """UI to play the Wordle game."""
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("My SpellingBee Game")
+        self.setWindowTitle("My Wordle Game")
         self.setGeometry(GUI_LEFT, GUI_TOP, GUI_WIDTH, GUI_HEIGHT)
 
         self.lgr = log_control.get_logger()
@@ -428,10 +428,10 @@ class SpellingBeeUI(QMainWindow):
             if current_level[:4] != self.status_info.text().lstrip()[:4]:
                 self.lgr.info(f"CHANGING level to '{current_level}'")
                 self.status_info.setText(centred_string(self, MED_LRG, current_level + '!'))
-# END class SpellingBeeUI
+# END class WordleUI
 
 
-log_control = MhsLogger(SpellingBeeUI.__name__, con_level = DEFAULT_LOG_LEVEL)
+log_control = MhsLogger(WordleUI.__name__, con_level = DEFAULT_LOG_LEVEL)
 
 if __name__ == "__main__":
     dialog = None
@@ -439,7 +439,7 @@ if __name__ == "__main__":
     code = 0
     try:
         app = QApplication(argv)
-        dialog = SpellingBeeUI()
+        dialog = WordleUI()
         app.exec()
     except KeyboardInterrupt as mki:
         log_control.exception(mki)

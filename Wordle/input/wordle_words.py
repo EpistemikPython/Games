@@ -2,7 +2,7 @@
 # coding=utf-8
 #
 # all_words.py
-#   -- list of acceptable words for a SpellingBee game
+#   -- list of acceptable words for a Wordle game
 #
 # Copyright (c) 2026 Mark Sattolo <epistemik@gmail.com>
 
