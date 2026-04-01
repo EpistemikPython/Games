@@ -1,13 +1,3 @@
-##############################################################################################################################
-# coding=utf-8
-#
-# pangrams.py
-#   -- list of pangrams for SpellingBee games
-#
-# Copyright (c) 2025 Mark Sattolo <epistemik@gmail.com>
-
-
-pangrams = [
     "AARDWOLF",
     "ABASEMENT",
     "ABBREVIATE",
@@ -5185,4 +5175,3 @@ pangrams = [
     "ZOOPHILIA",
     "ZOOPHYTE",
     "ZYMOTIC"
-]
