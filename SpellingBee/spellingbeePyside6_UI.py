@@ -1,7 +1,7 @@
 ##############################################################################################################################
 # coding=utf-8
 #
-# spellingbee-pyside6-UI.py
+# spellingbeePyside6_UI.py
 #   -- the UI for the SpellingBee game
 #
 # Copyright (c) 2026 Mark Sattolo <epistemik@gmail.com>
@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2026-02-26"
+__updated__ = "2026-03-07"
 
 import time
 from sys import argv
@@ -36,11 +36,10 @@ GUI_WIDTH = MEDIUM * 34
 GUI_HEIGHT = MEDIUM * 40
 GUI_LEFT = 520
 GUI_TOP = 75
-INFO_TEXT = (" How to Play the Game:\n"
-             "------------------------------------------\n"
+INFO_TEXT = ("   How to Play the Game:\n"
+             "---------------------------------------------\n"
              f"1) Using ONLY the displayed letters, enter a word (at least {MIN_WORD_LENGTH} letters long) in the 'Try' box.\n\n"
-             "2) Any number of each displayed letter is allowed, "
-             "but the Central letter MUST be present in the word.\n\n"
+             "2) Any number of each displayed letter is allowed, but the Central letter MUST be present in the word.\n\n"
              "3) Press ENTER to evaluate your guess.\n\n"
              "4) FYI, most simple plurals are just ignored... \n\n"
              "5) You can press the space bar to scramble the PLACEMENT of the outer letters.\n\n"
@@ -55,7 +54,6 @@ def display_info():
     infobox.setText(INFO_TEXT)
     # infobox.setMinimumWidth(960) # DOES NOTHING... ?!
     infobox.exec()
-    return
 
 def confirm_exit():
     confirm_box = QMessageBox()
@@ -74,9 +72,9 @@ def confirm_exit():
 def centred_string(qw:QWidget, fontsize:int, p:str) -> str:
     win_wd = qw.window().size().width()
     font_wd = (fontsize // 3) + 1
-    log_control.info(f"width = {win_wd}; string = '{p}'; font width = {font_wd}; string length = {len(p)}")
+    log_control.debug(f"width = {win_wd}; string = '{p}'; font width = {font_wd}; string length = {len(p)}")
     result = ( ( (win_wd // font_wd) - len(p) ) // 2)
-    log_control.info(f"num lead spaces = {result}")
+    log_control.debug(f"num lead spaces = {result}")
     return (" " * result) + p
 
 def set_letter_label_style(qlabel:QLabel, font_size:int = LARGE):
