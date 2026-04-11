@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2026-04-05"
+__updated__ = "2026-04-10"
 
 import random
 import string
@@ -46,23 +46,25 @@ def eligible_pangram(word:str, logger:logging.Logger=None) -> bool:
 
 
 class PointLevel(Enum):
-    Beginning = 0.0
-    Fine      = 0.125
-    Nice      = 0.25
-    Good      = 0.375
-    Halfway   = 0.5
-    Excellent = 0.65
-    Supreme   = 0.8
-    Perfect   = 1.0
+    Beginning   = 0.0
+    Fine        = 0.125
+    Nice        = 0.25
+    Good        = 0.375
+    Halfway     = 0.5
+    Excellent   = 0.6
+    Outstanding = 0.7
+    Supreme     = 0.8
+    Magnificent = 0.9
+    Perfection  = 1.0
 
 # noinspection PyAttributeOutsideInit
 class GameEngine:
     """The SpellingBee game internal data and procedures."""
     def __init__(self, p_lgr:MhsLogger):
         self.lgr = p_lgr
-        self.lgr.debug(f"number of pangrams = {len(pangrams)}; total number of words = {len(allwords)}")
-        self.lgr.info("Initialized Game Engine.")
+        self.lgr.info(f"number of pangrams = {len(pangrams)}; total number of words = {len(allwords)}")
         self.check_lists()
+        self.lgr.info("Initialized Game Engine.")
 
     def start(self, p_letters:str=""):
         self.current_guess = ''
@@ -215,7 +217,8 @@ class GameEngine:
                 if item not in allwords:
                     check.append(item)
             if check:
-                save_to_json("pangrams_not_in_words_list", check)
+                fname = save_to_json("pangrams_not_in_words_list", check)
+                self.lgr.info(f"Saved file: {fname}.")
             else:
                 self.lgr.info("All pangrams in word list!")
             check.clear()
@@ -223,7 +226,8 @@ class GameEngine:
                 if eligible_pangram(item) and item[-2:] != "ED" and item[-3:] != "ING" and item not in pangrams:
                     check.append(item)
             if check:
-                save_to_json("potential_pangrams_not_in_pangram_list", check)
+                fname = save_to_json("potential_pangrams_not_in_pangram_list", check)
+                self.lgr.info(f"Saved file: {fname}.")
             else:
                 self.lgr.info("All potential pangrams in pangram list!")
 # END class GameEngine
