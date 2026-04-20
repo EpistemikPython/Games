@@ -10,46 +10,21 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2026-04-12"
+__updated__ = "2026-04-19"
 
 import random
-import string
 from sys import path
 path.append("/home/marksa/git/Python/utils")
 from mhsUtils import *
 from mhsLogging import *
 from enum import Enum
 path.append("/home/marksa/git/Python/Games/SpellingBee/input")
-from all_words import all_sb_words as allwords
+from spellingbee_words import all_sb_words as sb_words
 
 MIN_WORD_LENGTH = 4
 MAX_WORD_LENGTH = 21
 PANGRAM_LENGTH = 7
 GE_DEBUG = True
-
-cleaner = str.maketrans('', '', string.punctuation)
-
-def eligible_pangram(word:str, logger:logging.Logger=None) -> bool:
-    clean_word = word.translate(cleaner).rstrip().lstrip()
-    result = ""
-    for lett in clean_word:
-        if not lett.isalpha():
-            return False
-        if lett not in result:
-            result += lett
-    if len(result) == PANGRAM_LENGTH:
-        if logger:
-            logger.info(f">> {clean_word} is a potential Pangram!")
-        return True
-    return False
-
-def format_word(word:str) -> str:
-    """Remove non-letters, punctuation, extra space left and right, and capitalize."""
-    clean_word = word.translate(cleaner).rstrip().lstrip()
-    for ch in clean_word:
-        if not ch.isalpha():
-            return ""
-    return clean_word.upper()
 
 class PointLevel(Enum):
     Beginning   = 0.0
@@ -68,7 +43,7 @@ class GameEngine:
     """The SpellingBee game internal data and procedures."""
     def __init__(self, p_lgr:MhsLogger):
         self.lgr = p_lgr
-        self.lgr.info(f"Initialized Game Engine >> total number of words = {len(allwords)}")
+        self.lgr.info(f"Initialized Game Engine >> total number of words = {len(sb_words)}")
 
     def start(self, p_letters:str=""):
         self.current_guess = ""
@@ -117,7 +92,7 @@ class GameEngine:
 
     def check_guess(self, resp:str) -> bool:
         """Check all letters for a good response and also see if a pangram."""
-        self.current_guess = format_word(resp)
+        self.current_guess = get_clean_word(resp)
         self.lgr.info(f"check guess '{self.current_guess}':")
         if self.current_guess in self.current_answer_list:
             self.lgr.info(f"{self.current_guess} is a GOOD guess!")
@@ -160,7 +135,7 @@ class GameEngine:
     def check_word(self, word:str = "") -> bool:
         if not word:
             word = self.current_guess
-        if word in allwords:
+        if word in sb_words:
             return True
         return False
 
@@ -175,9 +150,9 @@ class GameEngine:
         return True
 
     def load_pangrams(self):
-        for it in allwords:
+        for it in sb_words:
             result = []
-            item = format_word(it)
+            item = get_clean_word(it)
             # don't use ING or ED forms
             if item[-3:] == "ING" or item[-2:] == "ED":
                 continue
@@ -201,7 +176,7 @@ class GameEngine:
         if self.maximum_points > 0:
             return self.maximum_points
         point_total = 0
-        for item in allwords:
+        for item in sb_words:
             if self.check_letters(item) and self.check_word(item) and not self.check_plurals(item):
                 point_total += ( 1 if len(item) == MIN_WORD_LENGTH else len(item) )
                 self.current_answer_list.append(item)
@@ -213,13 +188,16 @@ class GameEngine:
         self.lgr.info(f"Total number of acceptable answers for '{self.required_letter}' + {self.surround_letters}"
                        f" = {self.total_num_answers}")
         self.maximum_points = point_total
+        if GE_DEBUG:
+            fname = save_to_json("current_answer_list", self.current_answer_list)
+            self.lgr.info(f"Saved file: {fname}.")
         return point_total
 
     def check_plurals(self, word:str = "") -> bool:
         if not word:
             word = self.current_guess
-        if word not in self.current_answer_list and ( (word[-1] == 'S' and word[-2] != 'S' and word[:-1] in allwords) or
-                (word[-2:] == "ES" and word[:-2] in allwords) ):
+        if word not in self.current_answer_list and ((word[-1] == 'S' and word[-2] != 'S' and word[:-1] in sb_words) or
+                                                     (word[-2:] == "ES" and word[:-2] in sb_words)):
             return True
         return False
 # END class GameEngine
