@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2026-03-07"
+__updated__ = "2026-04-22"
 
 import time
 from sys import argv
@@ -32,10 +32,10 @@ LARGE_FONT  = f"font-size: {LARGE}pt;"
 FONT_NORMAL = "font-weight: normal;"
 FONT_BOLD   = "font-weight: bold;"
 FONT_ITALIC = "font-style: italic;"
-GUI_WIDTH = MEDIUM * 34
-GUI_HEIGHT = MEDIUM * 40
-GUI_LEFT = 520
-GUI_TOP = 75
+GUI_WIDTH = MEDIUM * 40
+GUI_HEIGHT = MEDIUM * 42
+GUI_LEFT = 500
+GUI_TOP = 50
 INFO_TEXT = ("   How to Play the Game:\n"
              "---------------------------------------------\n"
              f"1) Using ONLY the displayed letters, enter a word (at least {MIN_WORD_LENGTH} letters long) in the 'Try' box.\n\n"
@@ -112,6 +112,11 @@ class SpellingBeeUI(QMainWindow):
         self.bad_letter_responses = "Bad/Missing letter:"
         invalid_label = QLabel("INVALID responses:")
         invalid_label.setStyleSheet(f"{FONT_BOLD} color: red")
+        self.num_invalid_resp = QLabel()
+        self.num_invalid_resp.setStyleSheet(f"{SMALL_FONT} color: red")
+        self.num_invalid_resp.setFrameStyle(QFrame.Shape.Panel | QFrame.Shadow.Sunken)
+        self.num_invalid_resp.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter)
+        nir_space = QLabel()
         self.invalid_response_box = QTextEdit()
         self.invalid_response_box.setReadOnly(True)
 
@@ -146,7 +151,14 @@ class SpellingBeeUI(QMainWindow):
         main_layout.addWidget(self.create_game_box())
         main_layout.addWidget(valid_label)
         main_layout.addWidget(self.valid_response_box)
-        main_layout.addWidget(invalid_label)
+        invalid_row = QHBoxLayout()
+        invalid_row.addWidget(invalid_label)
+        invalid_row.addWidget(self.num_invalid_resp)
+        invalid_row.addWidget(nir_space)
+        invalid_row.setStretchFactor(invalid_label, 1)
+        invalid_row.setStretchFactor(self.num_invalid_resp, 1)
+        invalid_row.setStretchFactor(nir_space, 4)
+        main_layout.addLayout(invalid_row)
         main_layout.addWidget(self.invalid_response_box)
         main_layout.addLayout(bottom_row)
 
@@ -162,11 +174,12 @@ class SpellingBeeUI(QMainWindow):
         self.status_info.setText(centred_string(self, MED_LRG, PointLevel.Beginning.name + "  :)"))
         self.clock.setText("00")
         self.valid_responses = []
+        self.num_invalid_resp.setText("00")
         self.invalid_responses = []
         self.point_display.setText("000")
         self.ptotal_display.setText(str(self.ge.maximum_points))
-        self.count_display.setText("000")
-        self.ctotal_display.setText(str(self.ge.total_num_answers))
+        self.num_valid_display.setText("00")
+        self.num_total_display.setText(str(self.ge.total_num_answers))
         self.response_box.setText("")
         self.message_box.setText("")
         self.valid_response_box.setText("")
@@ -202,21 +215,21 @@ class SpellingBeeUI(QMainWindow):
         # number of points
         self.point_display = QLabel()
         self.point_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: green")
-        pdiv = QLabel(" /")
+        pdiv = QLabel("  /")
         set_label_bold(pdiv, SM_MED)
         self.ptotal_display = QLabel()
         self.ptotal_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: purple")
         point_label = QLabel(" points")
         point_label.setStyleSheet(f"font-size: {SM_MED}pt")
-        pspacer = QLabel("      ")
+        pspacer = QLabel(" "*45)
         set_label_bold(pspacer, MED_LRG)
         # word count
-        self.count_display = QLabel()
-        self.count_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: green")
+        self.num_valid_display = QLabel()
+        self.num_valid_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: green")
         cdiv = QLabel(" /")
         set_label_bold(cdiv, SM_MED)
-        self.ctotal_display = QLabel()
-        self.ctotal_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: purple")
+        self.num_total_display = QLabel()
+        self.num_total_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: purple")
         count_label = QLabel(" words")
         count_label.setStyleSheet(f"font-size: {SM_MED}pt")
         # status row
@@ -226,9 +239,9 @@ class SpellingBeeUI(QMainWindow):
         points_row.addWidget(self.ptotal_display)
         points_row.addWidget(point_label)
         points_row.addWidget(pspacer)
-        points_row.addWidget(self.count_display)
+        points_row.addWidget(self.num_valid_display)
         points_row.addWidget(cdiv)
-        points_row.addWidget(self.ctotal_display)
+        points_row.addWidget(self.num_total_display)
         points_row.addWidget(count_label)
         gb_layout.addRow(points_row)
 
@@ -340,7 +353,7 @@ class SpellingBeeUI(QMainWindow):
                 # re-arrange the outer letters when space bar pressed
                 self.scramble_letters()
             self.message_box.setText("")
-            self.current_response = self.ge.format_guess(resp)
+            self.current_response = get_clean_word(resp)
             self.response_box.setText(self.current_response)
 
     def process_response(self):
@@ -374,7 +387,9 @@ class SpellingBeeUI(QMainWindow):
                     self.valid_response_box.setPlainText(self.pangram_responses)
                     self.valid_response_box.setFontWeight(self.vrb_reg_font_weight)
                     self.valid_response_box.setFontItalic(False)
+                self.valid_response_box.setFontItalic(True)
                 self.valid_response_box.append("Regular:")
+                self.valid_response_box.setFontItalic(False)
                 str_resp = (str(self.valid_responses)).replace(" ", "   ")
                 self.lgr.debug(f"valid str_resp = <{str_resp}>")
                 cleaned_text = str_resp.translate(cleaner)
@@ -391,6 +406,7 @@ class SpellingBeeUI(QMainWindow):
                     message_text = "VICTORY!"
             # have a BAD response
             else:
+                self.num_invalid_resp.setText(str(int(self.num_invalid_resp.text())+1))
                 if entry in self.ge.bad_letter_guesses:
                     self.bad_letter_responses = f"{self.bad_letter_responses}   {entry}"
                 else:
@@ -423,7 +439,7 @@ class SpellingBeeUI(QMainWindow):
             self.response_box.setText("")
             # update display of points, count and level
             self.point_display.setText(str(self.ge.point_total))
-            self.count_display.setText(str(self.ge.num_good_guesses))
+            self.num_valid_display.setText(str(self.ge.num_good_guesses))
             current_level = self.ge.get_current_level()
             if current_level[:4] != self.status_info.text().lstrip()[:4]:
                 self.lgr.info(f"CHANGING level to '{current_level}'")
