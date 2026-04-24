@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2026-04-22"
+__updated__ = "2026-04-23"
 
 import time
 from sys import argv
@@ -450,6 +450,9 @@ class SpellingBeeUI(QMainWindow):
 log_control = MhsLogger(SpellingBeeUI.__name__, con_level = DEFAULT_LOG_LEVEL)
 
 if __name__ == "__main__":
+    if len(argv) > 1:
+        print(f"Usage: python3 {get_filename(argv[0])}\nLaunch the SpellingBee game UI.")
+        exit(0)
     dialog = None
     app = None
     code = 0
