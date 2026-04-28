@@ -10,9 +10,10 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2026-04-23"
+__updated__ = "2026-04-27"
 
 import time
+from enum import IntEnum
 from sys import argv
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont
@@ -20,22 +21,21 @@ from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QLabel, QPu
                                QMessageBox, QFormLayout, QTextEdit, QHBoxLayout, QFrame, QLineEdit, QWidget)
 from spellingbeeGameEngine import *
 
-BASIC = 8
-SMALL   = BASIC * 2
-MEDIUM  = BASIC * 3
-SM_MED  = (SMALL + MEDIUM) // 2
-LARGE   = BASIC * 4
-MED_LRG = (MEDIUM + LARGE) // 2
-SMALL_FONT  = f"font-size: {SMALL}pt;"
-MEDIUM_FONT = f"font-size: {MEDIUM}pt;"
-LARGE_FONT  = f"font-size: {LARGE}pt;"
-FONT_NORMAL = "font-weight: normal;"
+class SbSize(IntEnum):
+    Xsmall  = 12
+    Small   = 16
+    SmMed   = 20
+    Medium  = 24
+    MedLarg = 28
+    Large   = 32
+    Xlarge  = 36
+
+
+SMALL_FONT  = f"font-size: {SbSize.Small}pt;"
+MEDIUM_FONT = f"font-size: {SbSize.Medium}pt;"
+LARGE_FONT  = f"font-size: {SbSize.Large}pt;"
 FONT_BOLD   = "font-weight: bold;"
 FONT_ITALIC = "font-style: italic;"
-GUI_WIDTH = MEDIUM * 40
-GUI_HEIGHT = MEDIUM * 42
-GUI_LEFT = 500
-GUI_TOP = 50
 INFO_TEXT = ("   How to Play the Game:\n"
              "---------------------------------------------\n"
              f"1) Using ONLY the displayed letters, enter a word (at least {MIN_WORD_LENGTH} letters long) in the 'Try' box.\n\n"
@@ -77,12 +77,12 @@ def centred_string(qw:QWidget, fontsize:int, p:str) -> str:
     log_control.debug(f"num lead spaces = {result}")
     return (" " * result) + p
 
-def set_letter_label_style(qlabel:QLabel, font_size:int = LARGE):
+def set_letter_label_style(qlabel:QLabel, font_size:int = SbSize.Large):
     qlabel.setStyleSheet(f"{FONT_BOLD} color: blue; background: white; font-size: {font_size}pt")
     qlabel.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Sunken)
     qlabel.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter)
 
-def set_label_bold(qlabel:QLabel, font_size:int = MEDIUM):
+def set_label_bold(qlabel:QLabel, font_size:int = SbSize.Medium):
     qlabel.setStyleSheet(f"{FONT_BOLD} font-size: {font_size}pt")
 
 # noinspection PyAttributeOutsideInit
@@ -91,7 +91,8 @@ class SpellingBeeUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("My SpellingBee Game")
-        self.setGeometry(GUI_LEFT, GUI_TOP, GUI_WIDTH, GUI_HEIGHT)
+        # pixels: left, top, width, height
+        self.setGeometry(500, 50, 960, 1008)
 
         self.lgr = log_control.get_logger()
         self.lgr.log(DEFAULT_LOG_LEVEL, f"{self.windowTitle()} runtime = {get_current_time()}")
@@ -99,7 +100,7 @@ class SpellingBeeUI(QMainWindow):
         self.ge = GameEngine(self.lgr)
 
         self.status_info = QLabel()
-        self.status_info.setStyleSheet(f"{FONT_BOLD} {FONT_ITALIC} font-size: {MED_LRG}pt; color: goldenrod; background: cyan")
+        self.status_info.setStyleSheet(f"{FONT_BOLD} {FONT_ITALIC} font-size: {SbSize.MedLarg}pt; color: goldenrod; background: cyan")
 
         self.pangram_responses = "Pangrams:"
         valid_label = QLabel("Valid responses:")
@@ -130,7 +131,7 @@ class SpellingBeeUI(QMainWindow):
         self.clock = QLabel()
         self.clock.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
         cfont = valid_label.font()
-        cfont.setPointSize(MEDIUM)
+        cfont.setPointSize(SbSize.Medium)
         self.clock.setFont(cfont)
         timer = QTimer(self)
         timer.timeout.connect(self.update_clock)
@@ -171,7 +172,7 @@ class SpellingBeeUI(QMainWindow):
     def reset(self):
         self.lgr.info("\n\nStarting a NEW Game!")
         self.ge.start()
-        self.status_info.setText(centred_string(self, MED_LRG, PointLevel.Beginning.name + "  :)"))
+        self.status_info.setText(centred_string(self, SbSize.MedLarg, PointLevel.Beginning.name + "  :)"))
         self.clock.setText("00")
         self.valid_responses = []
         self.num_invalid_resp.setText("00")
@@ -216,22 +217,22 @@ class SpellingBeeUI(QMainWindow):
         self.point_display = QLabel()
         self.point_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: green")
         pdiv = QLabel("  /")
-        set_label_bold(pdiv, SM_MED)
+        set_label_bold(pdiv, SbSize.SmMed)
         self.ptotal_display = QLabel()
         self.ptotal_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: purple")
         point_label = QLabel(" points")
-        point_label.setStyleSheet(f"font-size: {SM_MED}pt")
+        point_label.setStyleSheet(f"font-size: {SbSize.SmMed}pt")
         pspacer = QLabel(" "*45)
-        set_label_bold(pspacer, MED_LRG)
+        set_label_bold(pspacer, SbSize.MedLarg)
         # word count
         self.num_valid_display = QLabel()
         self.num_valid_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: green")
         cdiv = QLabel(" /")
-        set_label_bold(cdiv, SM_MED)
+        set_label_bold(cdiv, SbSize.SmMed)
         self.num_total_display = QLabel()
         self.num_total_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: purple")
         count_label = QLabel(" words")
-        count_label.setStyleSheet(f"font-size: {SM_MED}pt")
+        count_label.setStyleSheet(f"font-size: {SbSize.SmMed}pt")
         # status row
         points_row = QHBoxLayout()
         points_row.addWidget(self.point_display)
@@ -304,8 +305,9 @@ class SpellingBeeUI(QMainWindow):
         return grp_box
 
     def update_clock(self):
-        if self.isMinimized(): # pause the timer when minimized
+        if self.isMinimized() or self.isHidden() or not self.isVisible(): # pause the timer when game is inactive
             self.timer_start_numsecs += 1
+            return
         num_secs = int(time.time()) - self.timer_start_numsecs
         self.clock.setText("{:02}:{:02}:{:02}".format(num_secs // 3600, num_secs % 3600 // 60, num_secs % 3600 % 60))
 
@@ -401,7 +403,7 @@ class SpellingBeeUI(QMainWindow):
                     # accept no more input
                     self.response_box.setReadOnly(True)
                     # special colors
-                    self.status_info.setStyleSheet(f"{FONT_BOLD} {FONT_ITALIC} font-size: {MED_LRG}pt; color: green; background: gold")
+                    self.status_info.setStyleSheet(f"{FONT_BOLD} {FONT_ITALIC} font-size: {SbSize.MedLarg}pt; color: green; background: gold")
                     # special message
                     message_text = "VICTORY!"
             # have a BAD response
@@ -443,7 +445,7 @@ class SpellingBeeUI(QMainWindow):
             current_level = self.ge.get_current_level()
             if current_level[:4] != self.status_info.text().lstrip()[:4]:
                 self.lgr.info(f"CHANGING level to '{current_level}'")
-                self.status_info.setText(centred_string(self, MED_LRG, current_level + '!'))
+                self.status_info.setText(centred_string(self, SbSize.MedLarg, current_level + '!'))
 # END class SpellingBeeUI
 
 
