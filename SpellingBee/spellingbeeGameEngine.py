@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2026-04-19"
+__updated__ = "2026-05-01"
 
 import random
 from sys import path
@@ -34,8 +34,8 @@ class PointLevel(Enum):
     Halfway     = 0.5
     Excellent   = 0.6
     Outstanding = 0.7
-    Supreme     = 0.8
-    Magnificent = 0.9
+    Magnificent = 0.8
+    Supreme     = 0.9
     Perfection  = 1.0
 
 # noinspection PyAttributeOutsideInit
@@ -61,8 +61,8 @@ class GameEngine:
         self.bad_word_guesses = []
         self.bad_letter_guesses = []
         self.surround_letters = []
-        if p_letters and len(p_letters) > 0:
-            # check and use specified letters
+        # TODO: check and use specified letters
+        if p_letters and len(p_letters) == PANGRAM_LENGTH:
             # first letter = required; remaining 6 letters = outers
             pass
         self.load_pangrams()
@@ -82,10 +82,11 @@ class GameEngine:
         # save all important information from this game
         if not self.saved and self.good_guesses:
             self.good_guesses.sort()
-            game_record = {"TARGET":self.current_target, "REQUIRED":self.required_letter, "POINT_TOTAL":self.point_total,
-                           "MAX_POINTS":self.maximum_points, "PANGRAM_GUESSES":self.pangram_guesses,
-                           "GOOD_GUESSES":self.good_guesses, "BAD_LETTER_GUESSES":self.bad_letter_guesses,
-                           "BAD_WORD_GUESSES":self.bad_word_guesses, "COMPLETE_ANSWER_LIST":self.current_answer_list}
+            game_record = {"TARGET WORD":self.current_target, "REQUIRED LETTER":self.required_letter, "POINTS EARNED":self.point_total,
+                           "MAX POSSIBLE POINTS":self.maximum_points, "FINAL RATING":self.get_current_level(),
+                           "PANGRAM GUESSES":self.pangram_guesses, "GOOD GUESSES":self.good_guesses,
+                           "MISSED ANSWERS":self.missed_answers(), "BAD LETTER GUESSES":self.bad_letter_guesses,
+                           "BAD WORD GUESSES":self.bad_word_guesses, "COMPLETE ANSWER LIST":self.current_answer_list}
             grfile = save_to_json(f"GameRecord_{self.required_letter}_{self.current_target}", game_record)
             self.lgr.info(f"Saved game record as: {grfile}")
             self.saved = True
@@ -200,4 +201,11 @@ class GameEngine:
                                                      (word[-2:] == "ES" and word[:-2] in sb_words)):
             return True
         return False
+
+    def missed_answers(self) -> list:
+        results = []
+        for word in self.current_answer_list:
+            if word not in self.good_guesses:
+                results.append(word)
+        return results
 # END class GameEngine
