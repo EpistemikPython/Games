@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2026-05-01"
+__updated__ = "2026-05-08"
 
 import random
 from sys import path
@@ -197,8 +197,9 @@ class GameEngine:
     def check_plurals(self, word:str = "") -> bool:
         if not word:
             word = self.current_guess
-        if word not in self.current_answer_list and ((word[-1] == 'S' and word[-2] != 'S' and word[:-1] in sb_words) or
-                                                     (word[-2:] == "ES" and word[:-2] in sb_words)):
+        if word in self.current_answer_list:
+            return False
+        if (word[-1] == 'S' and word[-2] != 'S' and word[:-1] in sb_words) or (word[-2:] == "ES" and word[:-2] in sb_words):
             return True
         return False
 
