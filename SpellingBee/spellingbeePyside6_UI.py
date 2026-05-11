@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2026-04-27"
+__updated__ = "2026-05-09"
 
 import time
 from enum import IntEnum
@@ -36,6 +36,7 @@ MEDIUM_FONT = f"font-size: {SbSize.Medium}pt;"
 LARGE_FONT  = f"font-size: {SbSize.Large}pt;"
 FONT_BOLD   = "font-weight: bold;"
 FONT_ITALIC = "font-style: italic;"
+PLURALS_MSG = "Most simple PLURALS are IGNORED  :p"
 INFO_TEXT = ("   How to Play the Game:\n"
              "---------------------------------------------\n"
              f"1) Using ONLY the displayed letters, enter a word (at least {MIN_WORD_LENGTH} letters long) in the 'Try' box.\n\n"
@@ -45,7 +46,7 @@ INFO_TEXT = ("   How to Play the Game:\n"
              "5) You can press the space bar to scramble the PLACEMENT of the outer letters.\n\n"
              "6) Your Valid or Invalid guesses are displayed in the appropriate boxes.\n\n"
              "7) Pangrams are words that use ALL seven letters -- and earn DOUBLE points!\n\n"
-             "8) Exit the game when you are ready and your game information will be saved.")
+             "8) Exit the game when you are ready and your game information will be saved to a JSON file.")
 
 def display_info():
     infobox = QMessageBox()
@@ -60,7 +61,7 @@ def confirm_exit():
     confirm_box.setIcon(QMessageBox.Icon.Question)
     confirm_box.setStyleSheet("font-size: 16pt")
     confirm_box.setText("    Are you SURE you want to EXIT the game?    ")
-    cancel_button = confirm_box.addButton("No - Continue the game...", QMessageBox.ButtonRole.ActionRole)
+    cancel_button = confirm_box.addButton("No! >> Continue the game...", QMessageBox.ButtonRole.ActionRole)
     cancel_button.setStyleSheet("background: chartreuse")
     newgame_button = confirm_box.addButton("Yes >> START a NEW game!", QMessageBox.ButtonRole.ActionRole)
     newgame_button.setStyleSheet("color: green; background: MediumVioletRed")
@@ -69,18 +70,10 @@ def confirm_exit():
     confirm_box.setDefaultButton(cancel_button)
     return confirm_box, proceed_button, cancel_button, newgame_button
 
-def centred_string(qw:QWidget, fontsize:int, p:str) -> str:
-    win_wd = qw.window().size().width()
-    font_wd = (fontsize // 3) + 1
-    log_control.debug(f"width = {win_wd}; string = '{p}'; font width = {font_wd}; string length = {len(p)}")
-    result = ( ( (win_wd // font_wd) - len(p) ) // 2)
-    log_control.debug(f"num lead spaces = {result}")
-    return (" " * result) + p
-
-def set_letter_label_style(qlabel:QLabel, font_size:int = SbSize.Large):
+def set_label_letter_style(qlabel:QLabel, font_size:int = SbSize.Large):
     qlabel.setStyleSheet(f"{FONT_BOLD} color: blue; background: white; font-size: {font_size}pt")
     qlabel.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Sunken)
-    qlabel.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter)
+    qlabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
 def set_label_bold(qlabel:QLabel, font_size:int = SbSize.Medium):
     qlabel.setStyleSheet(f"{FONT_BOLD} font-size: {font_size}pt")
@@ -100,6 +93,7 @@ class SpellingBeeUI(QMainWindow):
         self.ge = GameEngine(self.lgr)
 
         self.status_info = QLabel()
+        self.status_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_info.setStyleSheet(f"{FONT_BOLD} {FONT_ITALIC} font-size: {SbSize.MedLarg}pt; color: goldenrod; background: cyan")
 
         self.pangram_responses = "Pangrams:"
@@ -172,7 +166,7 @@ class SpellingBeeUI(QMainWindow):
     def reset(self):
         self.lgr.info("\n\nStarting a NEW Game!")
         self.ge.start()
-        self.status_info.setText(centred_string(self, SbSize.MedLarg, PointLevel.Beginning.name + "  :)"))
+        self.status_info.setText(PointLevel.Beginning.name + "  :)")
         self.clock.setText("00")
         self.valid_responses = []
         self.num_invalid_resp.setText("00")
@@ -249,9 +243,9 @@ class SpellingBeeUI(QMainWindow):
         ulspacer = QLabel("")
         set_label_bold(ulspacer)
         self.upper_left_letter = QLabel("UL")
-        set_letter_label_style(self.upper_left_letter)
+        set_label_letter_style(self.upper_left_letter)
         self.upper_right_letter = QLabel("UR")
-        set_letter_label_style(self.upper_right_letter)
+        set_label_letter_style(self.upper_right_letter)
         urspacer = QLabel("")
         set_label_bold(urspacer)
         top_row = QHBoxLayout()
@@ -266,13 +260,13 @@ class SpellingBeeUI(QMainWindow):
         gb_layout.addRow(top_row)
 
         self.centre_left_letter = QLabel("CL")
-        set_letter_label_style(self.centre_left_letter)
+        set_label_letter_style(self.centre_left_letter)
         self.central_letter = QLabel("X")
         self.central_letter.setStyleSheet(f"{FONT_BOLD} {LARGE_FONT} color: purple; background: yellow")
         self.central_letter.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
         self.central_letter.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter)
         self.centre_right_letter = QLabel("CR")
-        set_letter_label_style(self.centre_right_letter)
+        set_label_letter_style(self.centre_right_letter)
         middle_row = QHBoxLayout()
         middle_row.addWidget(self.centre_left_letter)
         middle_row.addWidget(self.central_letter)
@@ -285,9 +279,9 @@ class SpellingBeeUI(QMainWindow):
         llspacer = QLabel("")
         set_label_bold(llspacer)
         self.lower_left_letter = QLabel("LL")
-        set_letter_label_style(self.lower_left_letter)
+        set_label_letter_style(self.lower_left_letter)
         self.lower_right_letter = QLabel("LR")
-        set_letter_label_style(self.lower_right_letter)
+        set_label_letter_style(self.lower_right_letter)
         lrspacer = QLabel("")
         set_label_bold(lrspacer)
         bottom_row = QHBoxLayout()
@@ -370,18 +364,17 @@ class SpellingBeeUI(QMainWindow):
                 message_text = f" Already tried '{entry}'  :("
             # ignore if simple plural
             elif self.ge.check_plurals(entry):
-                plurals_msg = "Most simple PLURALS are IGNORED  :p"
-                message_text = plurals_msg
-                self.lgr.debug(plurals_msg)
+                message_text = PLURALS_MSG
+                self.lgr.debug(PLURALS_MSG)
             # have a GOOD response
             elif self.ge.check_guess(entry):
                 if entry in self.ge.pangram_guesses:
                     self.pangram_responses = f"{self.pangram_responses}   {entry}"
-                    message_text = f"Pangram! {self.ge.current_points} points."
+                    message_text = f"'{entry}' is a Pangram! {self.ge.current_points} points!"
                 else:
                     self.valid_responses.append(entry)
                     self.valid_responses.sort()
-                    message_text = f"{self.ge.current_points} point{"s" if len(entry) > MIN_WORD_LENGTH else ""}!"
+                    message_text = f"'{entry}' = {self.ge.current_points} point{"s" if len(entry) > MIN_WORD_LENGTH else ""}!"
                 if self.pangram_responses:
                     # special font settings for Pangrams
                     self.valid_response_box.setFontWeight(QFont.Weight.Bold)
@@ -430,11 +423,11 @@ class SpellingBeeUI(QMainWindow):
                 self.invalid_response_box.append(cleaned_text)
                 self.lgr.debug(self.invalid_response_box.toPlainText())
                 if self.ge.required_letter not in entry:
-                    message_text = " MISSING Central letter!"
+                    message_text = f"'{entry}' is MISSING the Central letter!"
                 elif self.ge.check_bad_letter(entry):
-                    message_text = f" UNAVAILABLE letter '{self.ge.bad_letter}'  :o"
+                    message_text = f"'{entry}' uses UNAVAILABLE letter '{self.ge.bad_letter}'  :o"
                 else:
-                    message_text = " :("
+                    message_text = f"'{entry}' not good  :("
             # send a message
             self.message_box.setText(message_text)
             # clear the current response
@@ -445,7 +438,7 @@ class SpellingBeeUI(QMainWindow):
             current_level = self.ge.get_current_level()
             if current_level[:4] != self.status_info.text().lstrip()[:4]:
                 self.lgr.info(f"CHANGING level to '{current_level}'")
-                self.status_info.setText(centred_string(self, SbSize.MedLarg, current_level + '!'))
+                self.status_info.setText(current_level + '!')
 # END class SpellingBeeUI
 
 
