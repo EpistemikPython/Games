@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2026-05-16"
+__updated__ = "2026-05-17"
 
 import time
 import subprocess
@@ -110,7 +110,7 @@ class SpellingBeeUI(QMainWindow):
         super().__init__()
         self.setWindowTitle("My SpellingBee Game")
         # pixels: left, top, width, height
-        self.setGeometry(500, 50, 960, 1008)
+        self.setGeometry(500, 50, 640, 960)
 
         self.lgr = log_control.get_logger()
         self.lgr.log(DEFAULT_LOG_LEVEL, f"{self.windowTitle()} runtime = {get_current_time()}")
@@ -241,7 +241,7 @@ class SpellingBeeUI(QMainWindow):
         self.ptotal_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: purple")
         point_label = QLabel(" points")
         point_label.setStyleSheet(f"font-size: {SbSize.SmMed}pt")
-        pspacer = QLabel(" "*45)
+        pspacer = QLabel(" "*(self.width()//25))
         set_label_bold(pspacer, SbSize.MedLarg)
         # word count
         self.num_valid_display = QLabel()
@@ -278,27 +278,33 @@ class SpellingBeeUI(QMainWindow):
         top_row.addWidget(self.upper_left_letter)
         top_row.addWidget(self.upper_right_letter)
         top_row.addWidget(urspacer)
-        top_row.setStretchFactor(ulspacer, 1)
+        top_row.setStretchFactor(ulspacer, 3)
         top_row.setStretchFactor(self.upper_left_letter, 2)
         top_row.setStretchFactor(self.upper_right_letter, 2)
-        top_row.setStretchFactor(urspacer, 1)
+        top_row.setStretchFactor(urspacer, 3)
         gb_layout.addRow(top_row)
 
+        clspacer = QLabel("")
         self.centre_left_letter = QLabel("CL")
         set_label_letter_style(self.centre_left_letter)
         self.central_letter = QLabel("X")
         self.central_letter.setStyleSheet(f"{FONT_BOLD} {LARGE_FONT} color: purple; background: yellow")
         self.central_letter.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
         self.central_letter.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter)
+        crspacer = QLabel("")
         self.centre_right_letter = QLabel("CR")
         set_label_letter_style(self.centre_right_letter)
         middle_row = QHBoxLayout()
+        middle_row.addWidget(clspacer)
         middle_row.addWidget(self.centre_left_letter)
         middle_row.addWidget(self.central_letter)
         middle_row.addWidget(self.centre_right_letter)
+        middle_row.addWidget(crspacer)
+        middle_row.setStretchFactor(clspacer, 2)
         middle_row.setStretchFactor(self.centre_left_letter, 2)
         middle_row.setStretchFactor(self.central_letter, 3)
         middle_row.setStretchFactor(self.centre_right_letter, 2)
+        middle_row.setStretchFactor(crspacer, 2)
         gb_layout.addRow(middle_row)
 
         llspacer = QLabel("")
@@ -314,10 +320,10 @@ class SpellingBeeUI(QMainWindow):
         bottom_row.addWidget(self.lower_left_letter)
         bottom_row.addWidget(self.lower_right_letter)
         bottom_row.addWidget(lrspacer)
-        bottom_row.setStretchFactor(llspacer, 1)
+        bottom_row.setStretchFactor(llspacer, 3)
         bottom_row.setStretchFactor(self.lower_left_letter, 2)
         bottom_row.setStretchFactor(self.lower_right_letter, 2)
-        bottom_row.setStretchFactor(lrspacer, 1)
+        bottom_row.setStretchFactor(lrspacer, 3)
         gb_layout.addRow(bottom_row)
 
         grp_box.setLayout(gb_layout)
