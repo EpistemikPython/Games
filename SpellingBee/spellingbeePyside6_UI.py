@@ -10,9 +10,10 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2026-05-09"
+__updated__ = "2026-05-16"
 
 import time
+import subprocess
 from enum import IntEnum
 from sys import argv
 from PySide6.QtCore import Qt, QTimer
@@ -47,6 +48,7 @@ INFO_TEXT = ("   How to Play the Game:\n"
              "6) Your Valid or Invalid guesses are displayed in the appropriate boxes.\n\n"
              "7) Pangrams are words that use ALL seven letters -- and earn DOUBLE points!\n\n"
              "8) Exit the game when you are ready and your game information will be saved to a JSON file.")
+SBUI_DEBUG = False
 
 def display_info():
     infobox = QMessageBox()
@@ -77,6 +79,29 @@ def set_label_letter_style(qlabel:QLabel, font_size:int = SbSize.Large):
 
 def set_label_bold(qlabel:QLabel, font_size:int = SbSize.Medium):
     qlabel.setStyleSheet(f"{FONT_BOLD} font-size: {font_size}pt")
+
+def screen_locked(lgr:logging.Logger=None) -> bool:
+    """Stop the timer when a screensaver is active."""
+    try:
+        output = subprocess.check_output(["mate-screensaver-command", "-q"]).decode()
+        if output:
+            if lgr and SBUI_DEBUG:
+                lgr.debug(f"Mate screensaver output: {output}")
+            return "is active" in output
+    except FileNotFoundError:
+        if lgr:
+            lgr.warning("Mate screensaver NOT found!")
+    try:
+        output = subprocess.check_output(["gnome-screensaver-command", "-q"]).decode()
+        if output:
+            if lgr and SBUI_DEBUG:
+                lgr.debug(f"Gnome screensaver output: {output}")
+            return "is active" in output
+    except FileNotFoundError:
+        if lgr and SBUI_DEBUG:
+            lgr.warning("Gnome screensaver NOT found!")
+    return False
+
 
 # noinspection PyAttributeOutsideInit
 class SpellingBeeUI(QMainWindow):
@@ -299,8 +324,15 @@ class SpellingBeeUI(QMainWindow):
         return grp_box
 
     def update_clock(self):
-        if self.isMinimized() or self.isHidden() or not self.isVisible(): # pause the timer when game is inactive
+        if screen_locked(self.lgr): # pause the timer when screen locked
             self.timer_start_numsecs += 1
+            if self.timer_start_numsecs % 60 == 0:
+                self.lgr.info(f"{self.timer_start_numsecs}: Screen is locked.")
+            return
+        if self.isMinimized() or self.isHidden(): # pause the timer when game is inactive
+            self.timer_start_numsecs += 1
+            if self.timer_start_numsecs % 60 == 0:
+                self.lgr.info(f"{self.timer_start_numsecs}: Screen is minimized or hidden.")
             return
         num_secs = int(time.time()) - self.timer_start_numsecs
         self.clock.setText("{:02}:{:02}:{:02}".format(num_secs // 3600, num_secs % 3600 // 60, num_secs % 3600 % 60))
@@ -417,11 +449,11 @@ class SpellingBeeUI(QMainWindow):
                 self.invalid_response_box.append("NOT words:")
                 self.invalid_response_box.setFontWeight(QFont.Weight.Normal)
                 str_resp = (str(self.invalid_responses)).replace(" ", "   ")
-                self.lgr.debug(f"invalid str_resp = <{str_resp}>")
                 cleaned_text = str_resp.translate(cleaner)
-                self.lgr.debug(f"invalid cleaned_text = <{cleaned_text}>")
                 self.invalid_response_box.append(cleaned_text)
-                self.lgr.debug(self.invalid_response_box.toPlainText())
+                if SBUI_DEBUG:
+                    self.lgr.debug(f"invalid responses = <{str_resp}>\n\t\tinvalid responses cleaned text = <{cleaned_text}>"
+                                   f"\n\t\tinvalid responses to plain text = {self.invalid_response_box.toPlainText()}")
                 if self.ge.required_letter not in entry:
                     message_text = f"'{entry}' is MISSING the Central letter!"
                 elif self.ge.check_bad_letter(entry):
