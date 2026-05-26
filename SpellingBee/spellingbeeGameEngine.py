@@ -32,10 +32,10 @@ class PointLevel(Enum):
     Nice        = 0.25
     Good        = 0.375
     Halfway     = 0.5
-    Excellent   = 0.6
-    Outstanding = 0.7
-    Magnificent = 0.8
-    Supreme     = 0.9
+    Great       = 0.6
+    Excellent   = 0.7
+    Outstanding = 0.8
+    Magnificent = 0.9
     Perfection  = 1.0
 
 # noinspection PyAttributeOutsideInit
@@ -94,8 +94,8 @@ class GameEngine:
 
     def check_guess(self, resp:str) -> bool:
         """Check all letters for a good response and also see if a pangram."""
+        self.lgr.debug(f"check response '{resp}':")
         self.current_guess = get_clean_word(resp)
-        self.lgr.info(f"check guess '{self.current_guess}':")
         if self.current_guess in self.answer_list:
             self.lgr.info(f"{self.current_guess} is a GOOD guess!")
             self.good_guesses.append(self.current_guess)
