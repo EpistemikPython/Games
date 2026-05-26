@@ -149,6 +149,7 @@ class SpellingBeeUI(QMainWindow):
 
         self.clock = QLabel()
         self.clock.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+        self.lock_count = 0
         cfont = valid_label.font()
         cfont.setPointSize(SbSize.Medium)
         self.clock.setFont(cfont)
@@ -330,16 +331,15 @@ class SpellingBeeUI(QMainWindow):
         return grp_box
 
     def update_clock(self):
-        if screen_locked(self.lgr): # pause the timer when screen locked
+        log_pause = 600 if self.lock_count > 10 else 60
+        locked = screen_locked(self.lgr) # pause the timer when screen locked
+        if locked or self.isMinimized() or self.isHidden(): # pause the timer when game is inactive
             self.timer_start_numsecs += 1
-            if self.timer_start_numsecs % 60 == 0:
-                self.lgr.info(f"{self.timer_start_numsecs}: Screen is locked.")
+            if self.timer_start_numsecs % log_pause == 0:
+                self.lock_count += 1
+                self.lgr.info(f"{self.timer_start_numsecs}: Screen is " + ("locked." if locked else "minimized or hidden."))
             return
-        if self.isMinimized() or self.isHidden(): # pause the timer when game is inactive
-            self.timer_start_numsecs += 1
-            if self.timer_start_numsecs % 60 == 0:
-                self.lgr.info(f"{self.timer_start_numsecs}: Screen is minimized or hidden.")
-            return
+        self.lock_count = 0
         num_secs = int(time.time()) - self.timer_start_numsecs
         self.clock.setText("{:02}:{:02}:{:02}".format(num_secs // 3600, num_secs % 3600 // 60, num_secs % 3600 % 60))
 
@@ -386,97 +386,98 @@ class SpellingBeeUI(QMainWindow):
             if resp[-1] == " ":
                 # re-arrange the outer letters when space bar pressed
                 self.scramble_letters()
-            self.message_box.setText("")
+                self.message_box.setText("Scramble!")
             self.current_response = get_clean_word(resp)
             self.response_box.setText(self.current_response)
 
     def process_response(self):
         """'Enter' key was pressed so take the current response and check if it is a valid word."""
-        entry = self.response_box.text()
-        if entry and len(entry) >= MIN_WORD_LENGTH:
-            self.lgr.debug(f"Current response is: '{entry}'")
-            # check if already tried
-            if entry in self.ge.good_guesses:
-                message_text = f" Already have '{entry}'  ;)"
-            elif entry in self.ge.bad_word_guesses or entry in self.ge.bad_letter_guesses:
-                message_text = f" Already tried '{entry}'  :("
-            # ignore if simple plural
-            elif self.ge.check_plurals(entry):
-                message_text = PLURALS_MSG
-                self.lgr.debug(PLURALS_MSG)
-            # have a GOOD response
-            elif self.ge.check_guess(entry):
-                if entry in self.ge.pangram_guesses:
-                    self.pangram_responses = f"{self.pangram_responses}   {entry}"
-                    message_text = f"'{entry}' is a Pangram! {self.ge.current_points} points!"
-                else:
-                    self.valid_responses.append(entry)
-                    self.valid_responses.sort()
-                    message_text = f"'{entry}' = {self.ge.current_points} point{"s" if len(entry) > MIN_WORD_LENGTH else ""}!"
-                if self.pangram_responses:
-                    # special font settings for Pangrams
-                    self.valid_response_box.setFontWeight(QFont.Weight.Bold)
-                    self.valid_response_box.setFontItalic(True)
-                    self.valid_response_box.setPlainText(self.pangram_responses)
-                    self.valid_response_box.setFontWeight(self.vrb_reg_font_weight)
-                    self.valid_response_box.setFontItalic(False)
-                self.valid_response_box.setFontItalic(True)
-                self.valid_response_box.append("Regular:")
-                self.valid_response_box.setFontItalic(False)
-                str_resp = (str(self.valid_responses)).replace(" ", "   ")
-                self.lgr.debug(f"valid str_resp = <{str_resp}>")
-                cleaned_text = str_resp.translate(cleaner)
-                self.lgr.debug(f"valid cleaned_text = <{cleaned_text}>")
-                self.valid_response_box.append(cleaned_text)
-                self.lgr.debug(self.valid_response_box.toPlainText())
-                if self.ge.point_total == self.ge.maximum_points:
-                    # END THE GAME:
-                    # accept no more input
-                    self.response_box.setReadOnly(True)
-                    # special colors
-                    self.status_info.setStyleSheet(f"{FONT_BOLD} {FONT_ITALIC} font-size: {SbSize.MedLarg}pt; color: green; background: gold")
-                    # special message
-                    message_text = "VICTORY!"
-            # have a BAD response
+        entry = self.current_response
+        if not entry or len(entry) < MIN_WORD_LENGTH:
+            return
+        self.lgr.debug(f"Current response is: '{entry}'")
+        # check if already tried
+        if entry in self.ge.good_guesses:
+            message_text = f" Already have '{entry}'  ;)"
+        elif entry in self.ge.bad_word_guesses or entry in self.ge.bad_letter_guesses:
+            message_text = f" Already tried '{entry}'  :("
+        # ignore if simple plural
+        elif self.ge.check_plurals(entry):
+            message_text = PLURALS_MSG
+            self.lgr.debug(PLURALS_MSG)
+        # have a GOOD response
+        elif self.ge.check_guess(entry):
+            if entry in self.ge.pangram_guesses:
+                self.pangram_responses = f"{self.pangram_responses}   {entry}"
+                message_text = f"'{entry}' is a Pangram! {self.ge.current_points} points!"
             else:
-                self.num_invalid_resp.setText(str(int(self.num_invalid_resp.text())+1))
-                if entry in self.ge.bad_letter_guesses:
-                    self.bad_letter_responses = f"{self.bad_letter_responses}   {entry}"
-                else:
-                    self.invalid_responses.append(entry)
-                    self.invalid_responses.sort()
-                if self.bad_letter_responses:
-                    # italic font for words MISSING THE CENTRAL LETTER or USING UNAVAILABLE LETTERS
-                    self.invalid_response_box.setFontItalic(True)
-                    self.invalid_response_box.setPlainText(self.bad_letter_responses)
-                    self.invalid_response_box.setFontItalic(False)
-                self.lgr.debug(f"previous font weight = {self.invalid_response_box.fontWeight()}")
-                self.invalid_response_box.setFontWeight(QFont.Weight.Bold)
-                self.invalid_response_box.append("NOT words:")
-                self.invalid_response_box.setFontWeight(QFont.Weight.Normal)
-                str_resp = (str(self.invalid_responses)).replace(" ", "   ")
-                cleaned_text = str_resp.translate(cleaner)
-                self.invalid_response_box.append(cleaned_text)
-                if SBUI_DEBUG:
-                    self.lgr.debug(f"invalid responses = <{str_resp}>\n\t\tinvalid responses cleaned text = <{cleaned_text}>"
-                                   f"\n\t\tinvalid responses to plain text = {self.invalid_response_box.toPlainText()}")
-                if self.ge.required_letter not in entry:
-                    message_text = f"'{entry}' is MISSING the Central letter!"
-                elif self.ge.check_bad_letter(entry):
-                    message_text = f"'{entry}' uses UNAVAILABLE letter '{self.ge.bad_letter}'  :o"
-                else:
-                    message_text = f"'{entry}' not good  :("
-            # send a message
-            self.message_box.setText(message_text)
-            # clear the current response
-            self.response_box.setText("")
-            # update display of points, count and level
-            self.point_display.setText(str(self.ge.point_total))
-            self.num_valid_display.setText(str(self.ge.num_good_guesses))
-            current_level = self.ge.get_current_level()
-            if current_level[:4] != self.status_info.text().lstrip()[:4]:
-                self.lgr.info(f"CHANGING level to '{current_level}'")
-                self.status_info.setText(current_level + '!')
+                self.valid_responses.append(entry)
+                self.valid_responses.sort()
+                message_text = f"'{entry}' = {self.ge.current_points} point{"s" if len(entry) > MIN_WORD_LENGTH else ""}!"
+            if self.pangram_responses:
+                # special font settings for Pangrams
+                self.valid_response_box.setFontWeight(QFont.Weight.Bold)
+                self.valid_response_box.setFontItalic(True)
+                self.valid_response_box.setPlainText(self.pangram_responses)
+                self.valid_response_box.setFontWeight(self.vrb_reg_font_weight)
+                self.valid_response_box.setFontItalic(False)
+            self.valid_response_box.setFontItalic(True)
+            self.valid_response_box.append("Regular:")
+            self.valid_response_box.setFontItalic(False)
+            str_resp = (str(self.valid_responses)).replace(" ", "   ")
+            self.lgr.debug(f"valid str_resp = <{str_resp}>")
+            cleaned_text = str_resp.translate(cleaner)
+            self.lgr.debug(f"valid cleaned_text = <{cleaned_text}>")
+            self.valid_response_box.append(cleaned_text)
+            self.lgr.debug(self.valid_response_box.toPlainText())
+            if self.ge.point_total == self.ge.maximum_points:
+                # END THE GAME:
+                # accept no more input
+                self.response_box.setReadOnly(True)
+                # special colors
+                self.status_info.setStyleSheet(f"{FONT_BOLD} {FONT_ITALIC} font-size: {SbSize.MedLarg}pt; color: green; background: gold")
+                # special message
+                message_text = "VICTORY!"
+        # have a BAD response
+        else:
+            self.num_invalid_resp.setText(str(int(self.num_invalid_resp.text())+1))
+            if entry in self.ge.bad_letter_guesses:
+                self.bad_letter_responses = f"{self.bad_letter_responses}   {entry}"
+            else:
+                self.invalid_responses.append(entry)
+                self.invalid_responses.sort()
+            if self.bad_letter_responses:
+                # italic font for words MISSING THE CENTRAL LETTER or USING UNAVAILABLE LETTERS
+                self.invalid_response_box.setFontItalic(True)
+                self.invalid_response_box.setPlainText(self.bad_letter_responses)
+                self.invalid_response_box.setFontItalic(False)
+            self.lgr.debug(f"previous font weight = {self.invalid_response_box.fontWeight()}")
+            self.invalid_response_box.setFontWeight(QFont.Weight.Bold)
+            self.invalid_response_box.append("NOT words:")
+            self.invalid_response_box.setFontWeight(QFont.Weight.Normal)
+            str_resp = (str(self.invalid_responses)).replace(" ", "   ")
+            cleaned_text = str_resp.translate(cleaner)
+            self.invalid_response_box.append(cleaned_text)
+            if SBUI_DEBUG:
+                self.lgr.debug(f"invalid responses = <{str_resp}>\n\t\tinvalid responses cleaned text = <{cleaned_text}>"
+                               f"\n\t\tinvalid responses to plain text = {self.invalid_response_box.toPlainText()}")
+            if self.ge.required_letter not in entry:
+                message_text = f"'{entry}' is MISSING the Central letter!"
+            elif self.ge.check_bad_letter(entry):
+                message_text = f"'{entry}' uses UNAVAILABLE letter '{self.ge.bad_letter}'  :o"
+            else:
+                message_text = f"'{entry}' not good  :("
+        # send a message
+        self.message_box.setText(message_text)
+        # clear the current response
+        self.response_box.setText("")
+        # update display of points, count and level
+        self.point_display.setText(str(self.ge.point_total))
+        self.num_valid_display.setText(str(self.ge.num_good_guesses))
+        current_level = self.ge.get_current_level()
+        if current_level[:4] != self.status_info.text().lstrip()[:4]:
+            self.lgr.info(f"CHANGING level to '{current_level}'")
+            self.status_info.setText(current_level + '!')
 # END class SpellingBeeUI
 
 
