@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2026-05-17"
+__updated__ = "2026-05-27"
 
 import time
 import subprocess
@@ -81,7 +81,7 @@ def set_label_bold(qlabel:QLabel, font_size:int = SbSize.Medium):
     qlabel.setStyleSheet(f"{FONT_BOLD} font-size: {font_size}pt")
 
 def screen_locked(lgr:logging.Logger=None) -> bool:
-    """Stop the timer when a screensaver is active."""
+    """See if a screensaver is active."""
     try:
         output = subprocess.check_output(["mate-screensaver-command", "-q"]).decode()
         if output:
@@ -486,6 +486,7 @@ log_control = MhsLogger(SpellingBeeUI.__name__, con_level = DEFAULT_LOG_LEVEL)
 if __name__ == "__main__":
     if len(argv) > 1:
         print(f"Usage: python3 {get_filename(argv[0])}\nLaunch the SpellingBee game UI.")
+        log_control.debug("Usage instructions.")
         exit(0)
     dialog = None
     app = None

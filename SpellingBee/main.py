@@ -10,13 +10,14 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-11-08"
-__updated__ = "2026-04-23"
+__updated__ = "2026-05-26"
 
 from spellingbeePyside6_UI import *
 
 if __name__ == "__main__":
     if len(argv) > 1:
         print(f"Usage: python3 {get_filename(argv[0])}\nLaunch the SpellingBee game.")
+        log_control.debug("Usage instructions.")
         exit(0)
     window = None
     app = None
