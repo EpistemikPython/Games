@@ -220,3 +220,8 @@ class GameEngine:
                 results.append(word)
         return results
 # END class GameEngine
+
+
+if __name__ == "__main__":
+    print(f">> Load from a UI.")
+    exit(0)
