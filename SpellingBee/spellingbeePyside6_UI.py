@@ -10,9 +10,8 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2026-05-27"
+__updated__ = "2026-06-08"
 
-import time
 import subprocess
 from enum import IntEnum
 from sys import argv
@@ -149,13 +148,13 @@ class SpellingBeeUI(QMainWindow):
 
         self.clock = QLabel()
         self.clock.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
-        self.lock_count = 0
+        self.update_seconds = 1
         cfont = valid_label.font()
         cfont.setPointSize(SbSize.Medium)
         self.clock.setFont(cfont)
         timer = QTimer(self)
         timer.timeout.connect(self.update_clock)
-        timer.start(1000) # update each 1 second
+        timer.start(self.update_seconds * 1000) # update interval
 
         newgame_exit_btn = QPushButton("Exit Game?")
         newgame_exit_btn.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: red; background: yellow")
@@ -208,8 +207,10 @@ class SpellingBeeUI(QMainWindow):
         # place the target word letters
         self.central_letter.setText(self.ge.required_letter)
         self.scramble_letters()
-        # start the timer
-        self.timer_start_numsecs = int(time.time())
+        # game clock
+        self.run_secs = 0
+        self.pause_secs = 0
+        self.lock_count = 0
 
     def close(self, /):
         self.ge.save_record()
@@ -332,16 +333,17 @@ class SpellingBeeUI(QMainWindow):
 
     def update_clock(self):
         log_pause = 600 if self.lock_count > 10 else 60
-        locked = screen_locked(self.lgr) # pause the timer when screen locked
-        if locked or self.isMinimized() or self.isHidden(): # pause the timer when game is inactive
-            self.timer_start_numsecs += 1
-            if self.timer_start_numsecs % log_pause == 0:
+        locked = screen_locked(self.lgr) # pause when the screen is locked
+        if locked or self.isMinimized() or self.isHidden(): # pause when the game is inactive
+            self.pause_secs += 1
+            if self.pause_secs % log_pause == 0:
                 self.lock_count += 1
-                self.lgr.info(f"{self.timer_start_numsecs}: Screen is " + ("locked." if locked else "minimized or hidden."))
+                self.lgr.info(f"{self.pause_secs}: Screen is "+("locked." if locked else "minimized or hidden."))
             return
+        self.pause_secs = 0
         self.lock_count = 0
-        num_secs = int(time.time()) - self.timer_start_numsecs
-        self.clock.setText("{:02}:{:02}:{:02}".format(num_secs // 3600, num_secs % 3600 // 60, num_secs % 3600 % 60))
+        self.run_secs += 1
+        self.clock.setText("{:02}:{:02}:{:02}".format(self.run_secs // 3600, self.run_secs % 3600 // 60, self.run_secs % 3600 % 60))
 
     def exit_inquiry(self):
         """Confirm that the user wants to exit the current game."""
@@ -413,7 +415,7 @@ class SpellingBeeUI(QMainWindow):
             else:
                 self.valid_responses.append(entry)
                 self.valid_responses.sort()
-                message_text = f"'{entry}' = {self.ge.current_points} point{"s" if len(entry) > MIN_WORD_LENGTH else ""}!"
+                message_text = f"{entry} = {self.ge.current_points} point{"s" if len(entry) > MIN_WORD_LENGTH else ""}!"
             if self.pangram_responses:
                 # special font settings for Pangrams
                 self.valid_response_box.setFontWeight(QFont.Weight.Bold)
@@ -466,7 +468,7 @@ class SpellingBeeUI(QMainWindow):
             elif self.ge.check_bad_letter(entry):
                 message_text = f"'{entry}' uses UNAVAILABLE letter '{self.ge.bad_letter}'  :o"
             else:
-                message_text = f"'{entry}' not good  :("
+                message_text = f"'{entry}' not accepted  :("
         # send a message
         self.message_box.setText(message_text)
         # clear the current response
