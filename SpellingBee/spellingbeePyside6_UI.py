@@ -10,18 +10,18 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2026-06-08"
+__updated__ = "2026-06-15"
 
 import subprocess
 from enum import IntEnum
 from sys import argv
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import (QApplication, QVBoxLayout, QGroupBox, QLabel, QPushButton, QMainWindow,
-                               QMessageBox, QFormLayout, QTextEdit, QHBoxLayout, QFrame, QLineEdit, QWidget)
+from PySide6.QtWidgets import (QApplication, QWidget, QFormLayout, QVBoxLayout, QHBoxLayout, QFrame,
+                               QLabel, QPushButton, QMainWindow, QMessageBox, QTextEdit,  QLineEdit)
 from spellingbeeGameEngine import *
 
-class SbSize(IntEnum):
+class SbFontSize(IntEnum):
     Xsmall  = 12
     Small   = 16
     SmMed   = 20
@@ -31,9 +31,9 @@ class SbSize(IntEnum):
     Xlarge  = 36
 
 
-SMALL_FONT  = f"font-size: {SbSize.Small}pt;"
-MEDIUM_FONT = f"font-size: {SbSize.Medium}pt;"
-LARGE_FONT  = f"font-size: {SbSize.Large}pt;"
+SMALL_FONT  = f"font-size: {SbFontSize.Small}pt;"
+MEDIUM_FONT = f"font-size: {SbFontSize.Medium}pt;"
+LARGE_FONT  = f"font-size: {SbFontSize.Large}pt;"
 FONT_BOLD   = "font-weight: bold;"
 FONT_ITALIC = "font-style: italic;"
 PLURALS_MSG = "Most simple PLURALS are IGNORED  :p"
@@ -71,15 +71,15 @@ def confirm_exit():
     confirm_box.setDefaultButton(cancel_button)
     return confirm_box, proceed_button, cancel_button, newgame_button
 
-def set_label_letter_style(qlabel:QLabel, font_size:int = SbSize.Large):
+def set_label_letter_style(qlabel:QLabel, font_size:int = SbFontSize.Large):
     qlabel.setStyleSheet(f"{FONT_BOLD} color: blue; background: white; font-size: {font_size}pt")
     qlabel.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Sunken)
     qlabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-def set_label_bold(qlabel:QLabel, font_size:int = SbSize.Medium):
+def set_label_bold(qlabel:QLabel, font_size:int = SbFontSize.Medium):
     qlabel.setStyleSheet(f"{FONT_BOLD} font-size: {font_size}pt")
 
-def screen_locked(lgr:logging.Logger=None) -> bool:
+def check_screen_locked(lgr:logging.Logger=None) -> bool:
     """See if a screensaver is active."""
     try:
         output = subprocess.check_output(["mate-screensaver-command", "-q"]).decode()
@@ -108,7 +108,7 @@ class SpellingBeeUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("My SpellingBee Game")
-        # pixels: left, top, width, height
+        # pixels: dx from left, dx from top, width, height
         self.setGeometry(500, 50, 640, 960)
 
         self.lgr = log_control.get_logger()
@@ -118,69 +118,13 @@ class SpellingBeeUI(QMainWindow):
 
         self.status_info = QLabel()
         self.status_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.status_info.setStyleSheet(f"{FONT_BOLD} {FONT_ITALIC} font-size: {SbSize.MedLarg}pt; color: goldenrod; background: cyan")
-
-        self.pangram_responses = "Pangrams:"
-        valid_label = QLabel("Valid responses:")
-        valid_label.setStyleSheet(f"{FONT_BOLD} color: green")
-        self.valid_response_box = QTextEdit()
-        self.valid_response_box.setReadOnly(True)
-        self.vrb_reg_font_weight = self.valid_response_box.fontWeight()
-        self.lgr.debug(f"current valid response box font weight = {self.vrb_reg_font_weight}")
-
-        self.bad_letter_responses = "Bad/Missing letter:"
-        invalid_label = QLabel("INVALID responses:")
-        invalid_label.setStyleSheet(f"{FONT_BOLD} color: red")
-        self.num_invalid_resp = QLabel()
-        self.num_invalid_resp.setStyleSheet(f"{SMALL_FONT} color: red")
-        self.num_invalid_resp.setFrameStyle(QFrame.Shape.Panel | QFrame.Shadow.Sunken)
-        self.num_invalid_resp.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter)
-        nir_space = QLabel()
-        self.invalid_response_box = QTextEdit()
-        self.invalid_response_box.setReadOnly(True)
-
-        # buttons: instructions, timer, exit/new game
-        info_btn = QPushButton("Game Instructions")
-        info_btn.setStyleSheet(f"{MEDIUM_FONT} color: yellow; background: blue")
-        info_btn.setAutoDefault(False)
-        info_btn.setDefault(False)
-        info_btn.clicked.connect(display_info)
-
-        self.clock = QLabel()
-        self.clock.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
-        self.update_seconds = 1
-        cfont = valid_label.font()
-        cfont.setPointSize(SbSize.Medium)
-        self.clock.setFont(cfont)
-        timer = QTimer(self)
-        timer.timeout.connect(self.update_clock)
-        timer.start(self.update_seconds * 1000) # update interval
-
-        newgame_exit_btn = QPushButton("Exit Game?")
-        newgame_exit_btn.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: red; background: yellow")
-        newgame_exit_btn.setAutoDefault(False)
-        newgame_exit_btn.setDefault(False)
-        newgame_exit_btn.clicked.connect(self.exit_inquiry)
-        bottom_row = QHBoxLayout()
-        bottom_row.addWidget(info_btn)
-        bottom_row.addWidget(self.clock)
-        bottom_row.addWidget(newgame_exit_btn)
+        self.status_info.setStyleSheet(f"{FONT_BOLD} {FONT_ITALIC} font-size: {SbFontSize.MedLarg}pt; color: goldenrod; background: cyan")
 
         main_layout = QVBoxLayout()
         main_layout.addWidget(self.status_info)
-        main_layout.addWidget(self.create_game_box())
-        main_layout.addWidget(valid_label)
-        main_layout.addWidget(self.valid_response_box)
-        invalid_row = QHBoxLayout()
-        invalid_row.addWidget(invalid_label)
-        invalid_row.addWidget(self.num_invalid_resp)
-        invalid_row.addWidget(nir_space)
-        invalid_row.setStretchFactor(invalid_label, 1)
-        invalid_row.setStretchFactor(self.num_invalid_resp, 1)
-        invalid_row.setStretchFactor(nir_space, 4)
-        main_layout.addLayout(invalid_row)
-        main_layout.addWidget(self.invalid_response_box)
-        main_layout.addLayout(bottom_row)
+        main_layout.addLayout(self.create_game_section())
+        main_layout.addLayout(self.create_response_section())
+        main_layout.addLayout(self.create_button_section())
 
         main_widget = QWidget()
         main_widget.setLayout(main_layout)
@@ -189,6 +133,7 @@ class SpellingBeeUI(QMainWindow):
         self.show()
 
     def reset(self):
+        """Reset all the items needed to start a new game."""
         self.lgr.info("\n\nStarting a NEW Game!")
         self.ge.start()
         self.status_info.setText(PointLevel.Beginning.name + "  :)")
@@ -216,9 +161,9 @@ class SpellingBeeUI(QMainWindow):
         self.ge.save_record()
         super().close()
 
-    def create_game_box(self):
-        grp_box = QGroupBox()
-        gb_layout = QFormLayout()
+    def create_game_section(self):
+        """The game play and scoring section of the UI."""
+        qf_layout = QFormLayout()
 
         self.response_box = QLineEdit()
         self.response_box.setFrame(True)
@@ -226,34 +171,34 @@ class SpellingBeeUI(QMainWindow):
         self.response_box.setMaxLength(MAX_WORD_LENGTH)
         self.response_box.textEdited.connect(self.response_change)
         self.response_box.returnPressed.connect(self.process_response)
-        gb_layout.addRow(QLabel("Try: "), self.response_box)
+        qf_layout.addRow(QLabel("Try: "), self.response_box)
 
         self.message_box = QLineEdit()
         self.message_box.setFrame(True)
         self.message_box.setReadOnly(True)
         self.message_box.setStyleSheet(f"{SMALL_FONT} color:red")
-        gb_layout.addRow(QLabel("Message: "), self.message_box)
+        qf_layout.addRow(QLabel("Message: "), self.message_box)
 
         # number of points
         self.point_display = QLabel()
         self.point_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: green")
         pdiv = QLabel("  /")
-        set_label_bold(pdiv, SbSize.SmMed)
+        set_label_bold(pdiv, SbFontSize.SmMed)
         self.ptotal_display = QLabel()
         self.ptotal_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: purple")
         point_label = QLabel(" points")
-        point_label.setStyleSheet(f"font-size: {SbSize.SmMed}pt")
+        point_label.setStyleSheet(f"font-size: {SbFontSize.SmMed}pt")
         pspacer = QLabel(" "*(self.width()//25))
-        set_label_bold(pspacer, SbSize.MedLarg)
+        set_label_bold(pspacer, SbFontSize.MedLarg)
         # word count
         self.num_valid_display = QLabel()
         self.num_valid_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: green")
         cdiv = QLabel(" /")
-        set_label_bold(cdiv, SbSize.SmMed)
+        set_label_bold(cdiv, SbFontSize.SmMed)
         self.num_total_display = QLabel()
         self.num_total_display.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: purple")
         count_label = QLabel(" words")
-        count_label.setStyleSheet(f"font-size: {SbSize.SmMed}pt")
+        count_label.setStyleSheet(f"font-size: {SbFontSize.SmMed}pt")
         # status row
         points_row = QHBoxLayout()
         points_row.addWidget(self.point_display)
@@ -265,8 +210,9 @@ class SpellingBeeUI(QMainWindow):
         points_row.addWidget(cdiv)
         points_row.addWidget(self.num_total_display)
         points_row.addWidget(count_label)
-        gb_layout.addRow(points_row)
+        qf_layout.addRow(points_row)
 
+        # upper two letters
         ulspacer = QLabel("")
         set_label_bold(ulspacer)
         self.upper_left_letter = QLabel("UL")
@@ -284,12 +230,12 @@ class SpellingBeeUI(QMainWindow):
         top_row.setStretchFactor(self.upper_left_letter, 2)
         top_row.setStretchFactor(self.upper_right_letter, 2)
         top_row.setStretchFactor(urspacer, 3)
-        gb_layout.addRow(top_row)
-
+        qf_layout.addRow(top_row)
+        # middle three letters
         clspacer = QLabel("")
         self.centre_left_letter = QLabel("CL")
         set_label_letter_style(self.centre_left_letter)
-        self.central_letter = QLabel("X")
+        self.central_letter = QLabel("Req")
         self.central_letter.setStyleSheet(f"{FONT_BOLD} {LARGE_FONT} color: purple; background: yellow")
         self.central_letter.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
         self.central_letter.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter)
@@ -307,8 +253,8 @@ class SpellingBeeUI(QMainWindow):
         middle_row.setStretchFactor(self.central_letter, 3)
         middle_row.setStretchFactor(self.centre_right_letter, 2)
         middle_row.setStretchFactor(crspacer, 2)
-        gb_layout.addRow(middle_row)
-
+        qf_layout.addRow(middle_row)
+        # lower two letters
         llspacer = QLabel("")
         set_label_bold(llspacer)
         self.lower_left_letter = QLabel("LL")
@@ -326,14 +272,81 @@ class SpellingBeeUI(QMainWindow):
         bottom_row.setStretchFactor(self.lower_left_letter, 2)
         bottom_row.setStretchFactor(self.lower_right_letter, 2)
         bottom_row.setStretchFactor(lrspacer, 3)
-        gb_layout.addRow(bottom_row)
+        qf_layout.addRow(bottom_row)
 
-        grp_box.setLayout(gb_layout)
-        return grp_box
+        return qf_layout
+
+    def create_response_section(self):
+        """The response widgets section of the UI."""
+        qvb_layout = QVBoxLayout()
+
+        self.pangram_responses = "Pangrams:"
+        valid_label = QLabel("Valid responses:")
+        valid_label.setStyleSheet(f"{FONT_BOLD} color: green")
+        self.valid_response_box = QTextEdit()
+        self.valid_response_box.setReadOnly(True)
+        self.vrb_reg_font_weight = self.valid_response_box.fontWeight()
+        self.lgr.debug(f"current valid response box font weight = {self.vrb_reg_font_weight}")
+        qvb_layout.addWidget(valid_label)
+        qvb_layout.addWidget(self.valid_response_box)
+
+        self.bad_letter_responses = "Bad/Missing letter:"
+        invalid_label = QLabel("INVALID responses:")
+        invalid_label.setStyleSheet(f"{FONT_BOLD} color: red")
+        self.num_invalid_resp = QLabel()
+        self.num_invalid_resp.setStyleSheet(f"{SMALL_FONT} color: red")
+        self.num_invalid_resp.setFrameStyle(QFrame.Shape.Panel | QFrame.Shadow.Sunken)
+        self.num_invalid_resp.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter)
+        nir_space = QLabel()
+        self.invalid_response_box = QTextEdit()
+        self.invalid_response_box.setReadOnly(True)
+
+        invalid_row_layout = QHBoxLayout()
+        invalid_row_layout.addWidget(invalid_label)
+        invalid_row_layout.addWidget(self.num_invalid_resp)
+        invalid_row_layout.addWidget(nir_space)
+        invalid_row_layout.setStretchFactor(invalid_label, 1)
+        invalid_row_layout.setStretchFactor(self.num_invalid_resp, 1)
+        invalid_row_layout.setStretchFactor(nir_space, 5)
+        qvb_layout.addLayout(invalid_row_layout)
+        qvb_layout.addWidget(self.invalid_response_box)
+
+        return qvb_layout
+
+    def create_button_section(self):
+        """The instructions and exit/new game buttons and clock section of the UI."""
+        info_btn = QPushButton("Game Instructions")
+        info_btn.setStyleSheet(f"{MEDIUM_FONT} color: yellow; background: blue")
+        info_btn.setAutoDefault(False)
+        info_btn.setDefault(False)
+        info_btn.clicked.connect(display_info)
+
+        self.clock = QLabel()
+        self.clock.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+        self.update_seconds = 1
+        cfont = self.status_info.font()
+        cfont.setPointSize(SbFontSize.Medium)
+        self.clock.setFont(cfont)
+        timer = QTimer(self)
+        timer.timeout.connect(self.update_clock)
+        timer.start(self.update_seconds * 1000) # update interval
+
+        newgame_exit_btn = QPushButton("Exit Game?")
+        newgame_exit_btn.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: red; background: yellow")
+        newgame_exit_btn.setAutoDefault(False)
+        newgame_exit_btn.setDefault(False)
+        newgame_exit_btn.clicked.connect(self.exit_inquiry)
+
+        qhb_layout = QHBoxLayout()
+        qhb_layout.addWidget(info_btn)
+        qhb_layout.addWidget(self.clock)
+        qhb_layout.addWidget(newgame_exit_btn)
+        return qhb_layout
 
     def update_clock(self):
+        """Update the game clock when the game is active."""
         log_pause = 600 if self.lock_count > 10 else 60
-        locked = screen_locked(self.lgr) # pause when the screen is locked
+        locked = check_screen_locked(self.lgr) # pause when the screen is locked
         if locked or self.isMinimized() or self.isHidden(): # pause when the game is inactive
             self.pause_secs += 1
             if self.pause_secs % log_pause == 0:
@@ -364,16 +377,16 @@ class SpellingBeeUI(QMainWindow):
         """Change the placement of the surround letters."""
         self.lgr.debug("scramble_letters()")
         picked = self.ge.surround_letters.copy()
-        next_lett = picked[random.randrange(0,6)]
+        next_lett = picked[random.randrange(0, PANGRAM_LENGTH-1)]
         self.upper_left_letter.setText(next_lett)
         picked.remove(next_lett)
-        next_lett = picked[random.randrange(0,5)]
+        next_lett = picked[random.randrange(0, PANGRAM_LENGTH-2)]
         self.upper_right_letter.setText(next_lett)
         picked.remove(next_lett)
-        next_lett = picked[random.randrange(0,4)]
+        next_lett = picked[random.randrange(0, PANGRAM_LENGTH-3)]
         self.centre_left_letter.setText(next_lett)
         picked.remove(next_lett)
-        next_lett = picked[random.randrange(0,3)]
+        next_lett = picked[random.randrange(0, PANGRAM_LENGTH-4)]
         self.centre_right_letter.setText(next_lett)
         picked.remove(next_lett)
         next_lett = picked[0]
@@ -437,7 +450,7 @@ class SpellingBeeUI(QMainWindow):
                 # accept no more input
                 self.response_box.setReadOnly(True)
                 # special colors
-                self.status_info.setStyleSheet(f"{FONT_BOLD} {FONT_ITALIC} font-size: {SbSize.MedLarg}pt; color: green; background: gold")
+                self.status_info.setStyleSheet(f"{FONT_BOLD} {FONT_ITALIC} font-size: {SbFontSize.MedLarg}pt; color: green; background: gold")
                 # special message
                 message_text = "VICTORY!"
         # have a BAD response
