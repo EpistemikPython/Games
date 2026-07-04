@@ -10,14 +10,14 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2026-03-05"
-__updated__ = "2026-07-04"
+__updated__ = "2026-07-05"
 
 import subprocess
 from enum import IntEnum
 from sys import argv
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import (QApplication, QWidget, QFormLayout, QVBoxLayout, QHBoxLayout,
-                               QLabel, QPushButton, QMainWindow, QMessageBox, QLineEdit)
+from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+                               QPushButton, QMainWindow, QMessageBox, QLineEdit)
 from wordleGameEngine import *
 
 class WdFontSize(IntEnum):
@@ -46,7 +46,7 @@ INFO_TEXT = ("   How to Play the Game:\n"
              "7) Pangrams are words that use ALL seven letters -- and earn DOUBLE points!\n\n"
              "8) Exit the game when you are ready and your game information will be saved to a JSON file.")
 ORDERED_LETTERS = "EAOIUYSRLTNDCPMHGBKWFVZJXQ"
-SBUI_DEBUG = False
+WDUI_DEBUG = False
 
 def display_info():
     infobox = QMessageBox()
@@ -75,7 +75,7 @@ def check_screen_locked(lgr:logging.Logger=None) -> bool:
     try:
         output = subprocess.check_output(["mate-screensaver-command", "-q"]).decode()
         if output:
-            if lgr and SBUI_DEBUG:
+            if lgr and WDUI_DEBUG:
                 lgr.debug(f"Mate screensaver output: {output}")
             return "is active" in output
     except FileNotFoundError:
@@ -84,78 +84,13 @@ def check_screen_locked(lgr:logging.Logger=None) -> bool:
     try:
         output = subprocess.check_output(["gnome-screensaver-command", "-q"]).decode()
         if output:
-            if lgr and SBUI_DEBUG:
+            if lgr and WDUI_DEBUG:
                 lgr.debug(f"Gnome screensaver output: {output}")
             return "is active" in output
     except FileNotFoundError:
-        if lgr and SBUI_DEBUG:
+        if lgr and WDUI_DEBUG:
             lgr.warning("Gnome screensaver NOT found!")
     return False
-
-class GuessRow(QHBoxLayout):
-    """Row of 5 WordleBox to play the Wordle game."""
-    def __init__(self):
-        super().__init__()
-        left_spacer = QLabel()
-        self.addWidget(left_spacer)
-        self.setStretchFactor(left_spacer, 2)
-        self.letter_1 = GuessBox()
-        self.addWidget(self.letter_1)
-        self.setStretchFactor(self.letter_1, 1)
-        self.letter_2 = GuessBox()
-        self.addWidget(self.letter_2)
-        self.setStretchFactor(self.letter_2, 1)
-        self.letter_3 = GuessBox()
-        self.addWidget(self.letter_3)
-        self.setStretchFactor(self.letter_3, 1)
-        self.letter_4 = GuessBox()
-        self.addWidget(self.letter_4)
-        self.setStretchFactor(self.letter_4, 1)
-        self.letter_5 = GuessBox()
-        self.addWidget(self.letter_5)
-        self.setStretchFactor(self.letter_5, 1)
-        right_spacer = QLabel()
-        self.addWidget(right_spacer)
-        self.setStretchFactor(right_spacer, 2)
-
-class ResultRow(QHBoxLayout):
-    """Row of 5 WordleBox to play the Wordle game."""
-    def __init__(self, p_letters:str, p_size:int = 5):
-        super().__init__()
-        self.letter_1 = ResultBox(p_letters[0])
-        self.addWidget(self.letter_1)
-        self.letter_2 = ResultBox(p_letters[1])
-        self.addWidget(self.letter_2)
-        self.letter_3 = ResultBox(p_letters[2])
-        self.addWidget(self.letter_3)
-        self.letter_4 = ResultBox(p_letters[3])
-        self.addWidget(self.letter_4)
-        self.letter_5 = ResultBox(p_letters[4])
-        self.addWidget(self.letter_5)
-        if p_size > 5:
-            self.letter_6 = ResultBox(p_letters[5])
-            self.addWidget(self.letter_6)
-
-class GuessBox(QLineEdit):
-    """Box to contain a letter of the Wordle game."""
-    def __init__(self):
-        super().__init__()
-        self.setText(' ')
-        self.setStyleSheet(f"color: blue; background: white; font-size: {WdFontSize.Xlarge}pt")
-        self.setFrame(True)
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.resize(64,64)
-        self.textChanged.connect(lambda: WordleUI.response_change(WordleUI, self.text()))
-        self.returnPressed.connect(WordleUI.process_response)
-
-class ResultBox(QLineEdit):
-    """Box to contain a letter of the Wordle game."""
-    def __init__(self, letter:str):
-        super().__init__()
-        self.setText(letter)
-        self.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: black")
-        self.setFrame(False)
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
 # noinspection PyAttributeOutsideInit
 class WordleUI(QMainWindow):
@@ -172,9 +107,9 @@ class WordleUI(QMainWindow):
         self.ge = GameEngine(self.lgr)
 
         main_layout = QVBoxLayout()
-        main_layout.addLayout(self.create_guess_section())
+        main_layout.addLayout(self.create_guess_rows())
         main_layout.addWidget(self.create_message_box())
-        main_layout.addLayout(self.create_result_boxes())
+        main_layout.addLayout(self.create_result_section())
         main_layout.addLayout(self.create_button_section())
 
         main_widget = QWidget()
@@ -187,8 +122,9 @@ class WordleUI(QMainWindow):
         """Reset all the items needed to start a new game."""
         self.lgr.info("\n\nStarting a NEW Game!")
         self.ge.start()
-        self.row_1.letter_1.setFocus()
-        self.focus_item = self.row_1.letter_1
+        self.guess_boxes[0].setFocus()
+        self.active_row = 0
+        self.active_box = 0
         # game clock
         self.clock.setText("00")
         self.run_secs = 0
@@ -208,38 +144,15 @@ class WordleUI(QMainWindow):
         return self.message_box
 
     def create_guess_box(self):
-        self.guess_box = QLineEdit()
-        self.guess_box.setText(' ')
-        self.guess_box.setStyleSheet(f"color: blue; background: white; font-size: {WdFontSize.Xlarge}pt")
-        self.guess_box.setFrame(True)
-        self.guess_box.resize(64,64)
-        self.guess_box.textEdited.connect(self.response_change)
-        self.guess_box.returnPressed.connect(self.process_response)
-        self.guess_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        return self.guess_box
-
-    def create_guess_row(self):
-        left_spacer = QLabel()
-        self.addWidget(left_spacer)
-        self.setStretchFactor(left_spacer, 2)
-        self.letter_1 = self.create_guess_box()
-        self.addWidget(self.letter_1)
-        self.setStretchFactor(self.letter_1, 1)
-        self.letter_2 = GuessBox()
-        self.addWidget(self.letter_2)
-        self.setStretchFactor(self.letter_2, 1)
-        self.letter_3 = GuessBox()
-        self.addWidget(self.letter_3)
-        self.setStretchFactor(self.letter_3, 1)
-        self.letter_4 = GuessBox()
-        self.addWidget(self.letter_4)
-        self.setStretchFactor(self.letter_4, 1)
-        self.letter_5 = GuessBox()
-        self.addWidget(self.letter_5)
-        self.setStretchFactor(self.letter_5, 1)
-        right_spacer = QLabel()
-        self.addWidget(right_spacer)
-        self.setStretchFactor(right_spacer, 2)
+        guess_box = QLineEdit()
+        guess_box.setText(' ')
+        guess_box.setStyleSheet(f"color: blue; background: white; font-size: {WdFontSize.Xlarge}pt")
+        guess_box.setFrame(True)
+        guess_box.resize(64,64)
+        guess_box.textEdited.connect(self.response_change)
+        guess_box.returnPressed.connect(self.process_response)
+        guess_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        return guess_box
 
     def create_guess_rows(self):
         qvb_layout = QVBoxLayout()
@@ -250,32 +163,20 @@ class WordleUI(QMainWindow):
 
         self.guess_rows = []
         for k in range(6):
-            self.consonant_rows.append(QHBoxLayout())
+            self.lgr.info(f"Setting guess row #{k}")
+            self.guess_rows.append(QHBoxLayout())
+            left_spacer = QLabel()
+            self.guess_rows[k].addWidget(left_spacer)
+            self.guess_rows[k].setStretchFactor(left_spacer, 2)
             for l in range(5):
-                self.consonant_rows[k].addWidget(self.result_boxes[(5*k)+l])
-            qvb_layout.addItem(self.consonant_rows[k])
-
+                self.lgr.info(f"Setting guess box #{k}-{l}")
+                self.guess_rows[k].addWidget(self.guess_boxes[(5*k)+l])
+                self.guess_rows[k].setStretchFactor(self.guess_boxes[(5*k)+l], 1)
+            right_spacer = QLabel()
+            self.guess_rows[k].addWidget(right_spacer)
+            self.guess_rows[k].setStretchFactor(right_spacer, 2)
+            qvb_layout.addItem(self.guess_rows[k])
         return qvb_layout
-
-    def create_guess_section(self):
-        """The game play section of the UI."""
-        qf_layout = QFormLayout()
-        # guess rows
-        self.guess_section = QVBoxLayout()
-        self.row_1 = GuessRow()
-        self.guess_section.addLayout(self.row_1)
-        self.row_2 = GuessRow()
-        self.guess_section.addLayout(self.row_2)
-        self.row_3 = GuessRow()
-        self.guess_section.addLayout(self.row_3)
-        self.row_4 = GuessRow()
-        self.guess_section.addLayout(self.row_4)
-        self.row_5 = GuessRow()
-        self.guess_section.addLayout(self.row_5)
-        self.row_6 = GuessRow()
-        self.guess_section.addLayout(self.row_6)
-        qf_layout.addItem(self.guess_section)
-        return qf_layout
 
     @staticmethod
     def create_result_box(p_letter:str):
@@ -287,7 +188,7 @@ class WordleUI(QMainWindow):
         result_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
         return result_box
 
-    def create_result_boxes(self):
+    def create_result_section(self):
         qvb_layout = QVBoxLayout()
         self.result_boxes = []
         for i in range(len(ORDERED_LETTERS)):
@@ -306,26 +207,6 @@ class WordleUI(QMainWindow):
                 self.consonant_rows[k].addWidget(self.result_boxes[5*(k+1)+l])
             qvb_layout.addItem(self.consonant_rows[k])
 
-        return qvb_layout
-
-    def create_result_section(self):
-        """The result section of the UI."""
-        qvb_layout = QVBoxLayout()
-        self.vowel_row = ResultRow("EAOIUY", 6)
-        # most common: SRLTN
-        self.consonant_toprow = ResultRow("SRLTN")
-        # next: DCPMH
-        self.consonant_midrow_1 = ResultRow("DCPMH")
-        # next: GBKWF
-        self.consonant_midrow_2 = ResultRow("GBKWF")
-        # final: VZJXQ
-        self.consonant_botrow = ResultRow("VZJXQ")
-
-        qvb_layout.addItem(self.vowel_row)
-        qvb_layout.addItem(self.consonant_toprow)
-        qvb_layout.addItem(self.consonant_midrow_1)
-        qvb_layout.addItem(self.consonant_midrow_2)
-        qvb_layout.addItem(self.consonant_botrow)
         return qvb_layout
 
     def create_button_section(self):
@@ -361,7 +242,7 @@ class WordleUI(QMainWindow):
     def response_change(self, resp:str):
         self.lgr.info(f"Response changed to: '{resp}'")
         if resp:
-            self.message_box.setText(f"{repr(self.focus_item)} has focus. Text = '{resp}'")
+            self.message_box.setText(f"box[{self.active_row}-{self.active_box}] has focus. Text = '{resp}'")
 
     def process_response(self):
         pass
@@ -374,7 +255,7 @@ class WordleUI(QMainWindow):
             self.pause_secs += 1
             if self.pause_secs % log_pause == 0:
                 self.lock_count += 1
-                self.lgr.info(f"{self.pause_secs}: Screen is "+("locked." if locked else "minimized or hidden."))
+                self.lgr.info(f"{self.pause_secs}: Screen is " + ("locked." if locked else "minimized or hidden."))
             return
         self.pause_secs = 0
         self.lock_count = 0
