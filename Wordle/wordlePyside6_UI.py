@@ -8,14 +8,14 @@
 
 __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
-__python_version__ = "3.10+"
+__python_version__ = "3.11+"
 __created__ = "2026-03-05"
 __updated__ = "2026-07-05"
 
 import subprocess
 from enum import IntEnum
 from sys import argv
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QEvent
 from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                QPushButton, QMainWindow, QMessageBox, QLineEdit, QFrame)
 from wordleGameEngine import *
@@ -107,7 +107,7 @@ class WordleUI(QMainWindow):
 
         main_layout = QVBoxLayout()
         main_layout.addLayout(self.create_top_section())
-        main_layout.addLayout(self.create_guess_boxes())
+        main_layout.addLayout(self.create_guess_section())
         main_layout.addWidget(self.create_message_box())
         main_layout.addLayout(self.create_result_section())
         main_layout.addLayout(self.create_button_section())
@@ -126,6 +126,7 @@ class WordleUI(QMainWindow):
         self.input_box.setFocus()
         self.active_row = 0
         self.active_box = 0
+        self.button_hover = False
         # game clock
         self.clock.setText("00")
         self.run_secs = 0
@@ -187,57 +188,31 @@ class WordleUI(QMainWindow):
             guess_box.setText(p_text)
         return guess_box
 
-    def create_guess_boxes(self):
+    def create_guess_section(self):
         qvb_layout = QVBoxLayout()
         row_len = self.ge.word_length
         num_rows = self.ge.num_rows
-        self.guesses = [[self.create_guess_box(f"{j}-{i}") for i in range(row_len)] for j in range(num_rows)]
+        self.guess_boxes = [[self.create_guess_box(f"{j}-{i}") for i in range(row_len)] for j in range(num_rows)]
         for j in range(num_rows):
             for k in range(row_len):
-                self.lgr.info(self.guesses[j][k].text())
+                self.lgr.debug(self.guess_boxes[j][k].text())
 
-        self.guess_rows = []
+        layout_rows = []
         for k in range(num_rows):
             self.lgr.debug(f"Setting guess row #{k}")
-            self.guess_rows.append(QHBoxLayout())
+            layout_rows.append(QHBoxLayout())
             left_spacer = QLabel()
-            self.guess_rows[k].addWidget(left_spacer)
-            self.guess_rows[k].setStretchFactor(left_spacer, 2)
+            layout_rows[k].addWidget(left_spacer)
+            layout_rows[k].setStretchFactor(left_spacer, 2)
             for l in range(row_len):
                 self.lgr.debug(f"Setting guess box #{k}-{l}")
-                self.guess_rows[k].addWidget(self.guesses[k][l])
-                self.guess_rows[k].setStretchFactor(self.guesses[k][l], 1)
+                self.guess_boxes[k][l].setText('')
+                layout_rows[k].addWidget(self.guess_boxes[k][l])
+                layout_rows[k].setStretchFactor(self.guess_boxes[k][l], 1)
             right_spacer = QLabel()
-            self.guess_rows[k].addWidget(right_spacer)
-            self.guess_rows[k].setStretchFactor(right_spacer, 2)
-            qvb_layout.addItem(self.guess_rows[k])
-        return qvb_layout
-
-    def create_guess_section(self):
-        self.create_guess_boxes()
-
-        qvb_layout = QVBoxLayout()
-        self.guess_boxes = []
-        for i in range(30):
-            self.guess_boxes.append(self.create_guess_box())
-        self.lgr.info(f"Have {len(self.guess_boxes)} guess boxes.")
-
-        row_len = self.ge.word_length
-        self.guess_rows = []
-        for k in range(6):
-            self.lgr.debug(f"Setting guess row #{k}")
-            self.guess_rows.append(QHBoxLayout())
-            left_spacer = QLabel()
-            self.guess_rows[k].addWidget(left_spacer)
-            self.guess_rows[k].setStretchFactor(left_spacer, 2)
-            for l in range(row_len):
-                self.lgr.debug(f"Setting guess box #{k}-{l}")
-                self.guess_rows[k].addWidget(self.guess_boxes[(row_len*k)+l])
-                self.guess_rows[k].setStretchFactor(self.guess_boxes[(row_len*k)+l], 1)
-            right_spacer = QLabel()
-            self.guess_rows[k].addWidget(right_spacer)
-            self.guess_rows[k].setStretchFactor(right_spacer, 2)
-            qvb_layout.addItem(self.guess_rows[k])
+            layout_rows[k].addWidget(right_spacer)
+            layout_rows[k].setStretchFactor(right_spacer, 2)
+            qvb_layout.addItem(layout_rows[k])
         return qvb_layout
 
     @staticmethod
@@ -266,34 +241,52 @@ class WordleUI(QMainWindow):
             for l in range(1,6):
                 self.consonant_rows[k].addWidget(self.result_boxes[5*(k+1)+l])
             qvb_layout.addItem(self.consonant_rows[k])
-
         return qvb_layout
+
+    # Override eventFilter to catch QEvent.Type.Enter/Leave
+    def eventFilter(self, obj, event):
+        if obj == self.info_btn or obj == self.newgame_exit_btn:
+            if event.type() == QEvent.Type.Enter:
+                self.lgr.debug(f"'{obj.text()}' hover.")
+                self.button_hover = True
+            if event.type() == QEvent.Type.Leave:
+                self.lgr.debug("Button leave.")
+                self.button_hover = False
+        return super().eventFilter(obj, event)
 
     def create_button_section(self):
         """The instructions and exit/new game buttons of the UI."""
-        info_btn = QPushButton("Game Instructions")
-        info_btn.setStyleSheet(f"{MEDIUM_FONT} color: yellow; background: blue")
-        info_btn.setAutoDefault(False)
-        info_btn.setDefault(False)
-        info_btn.clicked.connect(display_info)
+        self.info_btn = QPushButton("Game Instructions")
+        self.info_btn.installEventFilter(self)
+        self.info_btn.setStyleSheet(f"{MEDIUM_FONT} color: yellow; background: blue")
+        self.info_btn.setAutoDefault(False)
+        self.info_btn.setDefault(False)
+        self.info_btn.clicked.connect(display_info)
 
-        newgame_exit_btn = QPushButton("Exit Game?")
-        newgame_exit_btn.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: red; background: yellow")
-        newgame_exit_btn.setAutoDefault(False)
-        newgame_exit_btn.setDefault(False)
-        newgame_exit_btn.clicked.connect(self.exit_inquiry)
+        self.newgame_exit_btn = QPushButton("Exit Game?")
+        self.newgame_exit_btn.installEventFilter(self)
+        self.newgame_exit_btn.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: red; background: yellow")
+        self.newgame_exit_btn.setAutoDefault(False)
+        self.newgame_exit_btn.setDefault(False)
+        self.newgame_exit_btn.clicked.connect(self.exit_inquiry)
 
         qhb_layout = QHBoxLayout()
-        qhb_layout.addWidget(info_btn)
-        qhb_layout.addWidget(newgame_exit_btn)
+        qhb_layout.addWidget(self.info_btn)
+        qhb_layout.addWidget(self.newgame_exit_btn)
         return qhb_layout
 
     def response_change(self, resp:str):
         """Parse the current response and place the appropriate letters in the proper guess boxes."""
         self.lgr.info(f"Response changed to: '{resp}'")
         if resp:
+            self.clear_active_row()
             self.message_box.setText(f"box[{self.active_row}-{self.active_box}] has focus. Text = '{resp}'")
             self.current_response = resp
+            current_box = 0
+            for letter in resp:
+                self.guess_boxes[self.active_row][current_box].setText(letter)
+                current_box += 1
+        # self.active_box = 0
 
     def process_response(self):
         """'Enter' key was pressed so take the current response and check if it is a valid word."""
@@ -301,6 +294,10 @@ class WordleUI(QMainWindow):
         if not entry:
             return
         self.lgr.info(f">> Process response '{entry}'.")
+
+    def clear_active_row(self):
+        for i in range(self.ge.word_length):
+            self.guess_boxes[self.active_row][i].setText('')
 
     def update_clock(self):
         """Update the game clock when the game is active."""
@@ -316,8 +313,9 @@ class WordleUI(QMainWindow):
         self.lock_count = 0
         self.run_secs += 1
         self.clock.setText("{:02}:{:02}:{:02}".format(self.run_secs // 3600, self.run_secs % 3600 // 60, self.run_secs % 3600 % 60))
-        # make sure we can always handle user input
-        self.input_box.setFocus()
+        # make sure keyboard input gets to the input box
+        if not self.button_hover:
+            self.input_box.setFocus()
 
     def exit_inquiry(self):
         """Confirm that the user wants to exit the current game."""
