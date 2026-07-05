@@ -8,9 +8,9 @@
 
 __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
-__python_version__ = "3.10+"
+__python_version__ = "3.11+"
 __created__ = "2026-03-05"
-__updated__ = "2026-07-04"
+__updated__ = "2026-07-05"
 
 import random
 from sys import path
@@ -22,6 +22,7 @@ from wordle_words import all_wordle_words as all_words
 
 MIN_WORD_LENGTH = 5
 MAX_WORD_LENGTH = 9
+DEFAULT_NUM_ROWS = 6
 WDGE_DEBUG = True
 
 # noinspection PyAttributeOutsideInit
@@ -34,6 +35,7 @@ class GameEngine:
             pass
         self.lgr.info(f"Initialized Game Engine >> total number of words = {len(all_words)}")
         self.word_length = MIN_WORD_LENGTH
+        self.num_rows = DEFAULT_NUM_ROWS
 
     def start(self):
         self.current_guess = ""
@@ -42,7 +44,6 @@ class GameEngine:
         self.good_guesses = []
         self.current_target = all_words[random.randrange(0, len(all_words))]
         self.lgr.info(f"current target word = {self.current_target}")
-        self.lgr.info("Started a Game.")
 
     def save_record(self):
         # save all important information from this game
