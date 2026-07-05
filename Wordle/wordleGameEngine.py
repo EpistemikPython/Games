@@ -10,214 +10,64 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2026-03-05"
-__updated__ = "2026-03-05"
+__updated__ = "2026-07-04"
 
 import random
-import string
 from sys import path
 path.append("/home/marksa/git/Python/utils")
 from mhsUtils import *
 from mhsLogging import *
-from enum import Enum
-path.append("/home/marksa/git/Python/Games/SpellingBee/input")
-from wordle_words import all_wordle_words as allwords
+path.append("/home/marksa/git/Python/Games/Wordle/input")
+from wordle_words import all_wordle_words as all_words
 
-MIN_WORD_LENGTH = 4
-MAX_WORD_LENGTH = 21
-PANGRAM_LENGTH = 7
-GE_DEBUG = False
-
-cleaner = str.maketrans('', '', string.punctuation)
-
-def eligible_pangram(word:str, logger:logging.Logger=None) -> bool:
-    clean_word = word.translate(cleaner)
-    result = ""
-    for lett in clean_word:
-        if not lett.isalpha():
-            return False
-        if lett not in result:
-            result += lett
-    if len(result) == PANGRAM_LENGTH:
-        if logger:
-            logger.info(f">> {clean_word} is a potential Pangram!")
-        return True
-    return False
-
-
-class PointLevel(Enum):
-    Beginning = 0.0
-    Fine      = 0.125
-    Nice      = 0.25
-    Good      = 0.375
-    Halfway   = 0.5
-    Excellent = 0.65
-    Supreme   = 0.8
-    Perfect   = 1.0
+MIN_WORD_LENGTH = 5
+MAX_WORD_LENGTH = 9
+WDGE_DEBUG = True
 
 # noinspection PyAttributeOutsideInit
 class GameEngine:
-    """The Wordle game internal data and procedures."""
-    def __init__(self, p_lgr:MhsLogger):
+    """The SpellingBee game internal data and procedures."""
+    def __init__(self, p_lgr:MhsLogger, p_len:int=5):
         self.lgr = p_lgr
-        self.lgr.debug(f"number of possible words = {len(allwords)}")
-        self.lgr.info("Initialized Game Engine.")
-        if GE_DEBUG:
-            self.check_lists()
+        # TODO: check and use specified word length
+        if p_len <= MAX_WORD_LENGTH:
+            pass
+        self.lgr.info(f"Initialized Game Engine >> total number of words = {len(all_words)}")
+        self.word_length = MIN_WORD_LENGTH
 
     def start(self):
-        self.current_guess = ''
-        self.bad_letter = ''
-        self.total_num_answers = 0
-        self.num_good_guesses = 0
-        self.point_total = 0
-        self.maximum_points = 0
-        self.current_points = 0
+        self.current_guess = ""
+        self.num_guesses = 0
         self.saved = False
-        self.current_answer_list = []
-        self.pangram_guesses = []
         self.good_guesses = []
-        self.bad_word_guesses = []
-        self.bad_letter_guesses = []
-        self.surround_letters = []
-        self.current_target = pangrams[random.randrange(0, len(pangrams))]
+        self.current_target = all_words[random.randrange(0, len(all_words))]
         self.lgr.info(f"current target word = {self.current_target}")
-        self.required_letter = self.current_target[random.randrange(0, len(self.current_target))]
-        self.lgr.info(f"required letter = {self.required_letter}")
-        for lett in self.current_target:
-            if lett not in self.required_letter and lett not in self.surround_letters:
-                self.surround_letters.append(lett)
-        self.lgr.info(f"outer letters = {self.surround_letters}")
-        self.find_maximum_points()
         self.lgr.info("Started a Game.")
 
     def save_record(self):
         # save all important information from this game
         if not self.saved and self.good_guesses:
             self.good_guesses.sort()
-            game_record = {"TARGET":self.current_target, "REQUIRED":self.required_letter, "POINT_TOTAL":self.point_total,
-                           "MAX_POINTS":self.maximum_points, "PANGRAM_GUESSES":self.pangram_guesses,
-                           "GOOD_GUESSES":self.good_guesses, "BAD_LETTER_GUESSES":self.bad_letter_guesses,
-                           "BAD_WORD_GUESSES":self.bad_word_guesses, "COMPLETE_ANSWER_LIST":self.current_answer_list}
-            grfile = save_to_json(f"GameRecord_{self.required_letter}_{self.current_target}", game_record)
+            game_record = {"TARGET WORD":self.current_target, "GOOD GUESSES":self.good_guesses}
+            grfile = save_to_json(f"WordleGameRecord_{self.current_target}", game_record)
             self.lgr.info(f"Saved game record as: {grfile}")
             self.saved = True
 
-    def format_guess(self, resp:str) -> str:
-        """Remove non-letters, capitalize and remove extra space left and right."""
-        formatted_string = ""
-        for c in resp:
-            if str.isalpha(c):
-                formatted_string += c.upper()
-        self.current_guess = formatted_string.rstrip().lstrip()
-        return self.current_guess
-
     def check_guess(self, resp:str) -> bool:
-        """Check all letters for a good response and also see if a Pangram."""
-        self.format_guess(resp)
-        self.lgr.info(f"check word '{self.current_guess}'")
-        if self.current_guess in self.current_answer_list:
+        """Check for a good response."""
+        self.lgr.debug(f"check response '{resp}':")
+        self.current_guess = get_clean_word(resp)
+        if self.current_guess == self.current_target:
+            self.lgr.info(f"'{resp}' is the answer!")
+            return True
+        if self.current_guess in all_words:
             self.lgr.info(f"{self.current_guess} is a GOOD guess!")
             self.good_guesses.append(self.current_guess)
-            self.current_points = (1 if len(resp) == MIN_WORD_LENGTH else len(resp))
-            self.num_good_guesses += 1
-            if self.check_pangram():
-                self.lgr.info(f"{self.current_guess} is a PANGRAM!")
-                self.pangram_guesses.append(self.current_guess)
-                self.current_points += len(resp) # PANGRAM BONUS
-            self.point_total += self.current_points
-            return True
-
-        self.lgr.info(f"{self.current_guess} is a BAD guess!")
-        if not self.check_letters():
-            self.bad_letter_guesses.append(self.current_guess)
-            return False
-        self.bad_word_guesses.append(self.current_guess)
+            self.num_guesses += 1
         return False
-
-    def check_bad_letter(self, word:str = "") -> bool:
-        if not word:
-            word = self.current_guess
-        for lett in word:
-            if lett != self.required_letter and lett not in self.surround_letters:
-                self.bad_letter = lett
-                return True
-        self.bad_letter = ""
-        return False
-
-    def check_letters(self, word:str = "") -> bool:
-        if not word:
-            word = self.current_guess
-        if self.required_letter not in word:
-            return False
-        if self.check_bad_letter(word):
-            return False
-        return True
-
-    def check_word(self, word:str = "") -> bool:
-        if not word:
-            word = self.current_guess
-        if word in allwords:
-            return True
-        return False
-
-    def check_pangram(self, word:str = "") -> bool:
-        if not word:
-            word = self.current_guess
-        if self.required_letter not in word:
-            return False
-        for lett in self.surround_letters:
-            if lett not in word:
-                return False
-        return True
-
-    def get_current_level(self) -> str:
-        current_point_percent = self.point_total / self.maximum_points
-        for item in reversed(PointLevel):
-            if current_point_percent >= item.value:
-                return item.name
-        return PointLevel.Beginning.name
-
-    def find_maximum_points(self) -> int:
-        if self.maximum_points > 0:
-            return self.maximum_points
-        point_total = 0
-        for item in allwords:
-            if self.check_letters(item) and self.check_word(item) and not self.check_plurals(item):
-                point_total += ( 1 if len(item) == MIN_WORD_LENGTH else len(item) )
-                self.current_answer_list.append(item)
-                if self.check_pangram(item):
-                    point_total += len(item) # PANGRAM BONUS
-        self.current_answer_list.sort()
-        self.lgr.info(f"Maximum points = {point_total}.")
-        self.total_num_answers = len(self.current_answer_list)
-        self.lgr.info(f"Total number of acceptable answers for '{self.required_letter}' + {self.surround_letters}"
-                       f" = {self.total_num_answers}")
-        self.maximum_points = point_total
-        return point_total
-
-    def check_plurals(self, word:str = "") -> bool:
-        if not word:
-            word = self.current_guess
-        if word not in self.current_answer_list and ( (word[-1] == 'S' and word[-2] != 'S' and word[:-1] in allwords) or
-                (word[-2:] == "ES" and word[:-2] in allwords) ):
-            return True
-        return False
-
-    def check_lists(self):
-        check = []
-        for item in pangrams:
-            if item not in allwords:
-                check.append(item)
-        if check:
-            save_to_json("pangrams_not_in_words_list", check)
-        else:
-            self.lgr.info("All pangrams in word list!")
-        check.clear()
-        for item in allwords:
-            if eligible_pangram(item) and item not in pangrams:
-                check.append(item)
-        if check:
-            save_to_json("potential_pangrams_not_in_pangram_list", check)
-        else:
-            self.lgr.info("All potential pangram words in pangram list!")
 # END class GameEngine
+
+
+if __name__ == "__main__":
+    print(f">> Load from a UI.")
+    exit(0)
