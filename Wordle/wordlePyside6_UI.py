@@ -145,7 +145,7 @@ class WordleUI(QMainWindow):
         self.input_box.setReadOnly(False)
         # restrict acceptable input to 5 uppercase letters
         self.input_box.setInputMask(">AAAAA")
-        self.input_box.setStyleSheet(f"{SMALL_FONT} color: {INPUT_COLOR}; background: {INPUT_COLOR}")
+        self.input_box.setStyleSheet(f"{SMALL_FONT} color: {INPUT_COLOR}; background: white")
         self.input_box.textEdited.connect(self.response_change)
         self.input_box.returnPressed.connect(self.process_response)
 
@@ -164,9 +164,9 @@ class WordleUI(QMainWindow):
         qhb_layout.setStretchFactor(self.input_box, 1)
         left_spacer = QLabel()
         qhb_layout.addWidget(left_spacer)
-        qhb_layout.setStretchFactor(left_spacer, 20)
+        qhb_layout.setStretchFactor(left_spacer, 2)
         qhb_layout.addWidget(self.clock)
-        qhb_layout.setStretchFactor(self.clock, 4)
+        qhb_layout.setStretchFactor(self.clock, 2)
         return qhb_layout
 
     def create_message_box(self):
@@ -247,7 +247,7 @@ class WordleUI(QMainWindow):
     def eventFilter(self, obj, event):
         if obj == self.info_btn or obj == self.newgame_exit_btn:
             if event.type() == QEvent.Type.Enter:
-                self.lgr.debug(f"'{obj.text()}' hover.")
+                self.lgr.debug("Button hover.")
                 self.button_hover = True
             if event.type() == QEvent.Type.Leave:
                 self.lgr.debug("Button leave.")
@@ -277,27 +277,61 @@ class WordleUI(QMainWindow):
 
     def response_change(self, resp:str):
         """Parse the current response and place the appropriate letters in the proper guess boxes."""
-        self.lgr.info(f"Response changed to: '{resp}'")
+        self.lgr.info(f"Response changed to: '{resp}'; len(resp) = {len(resp)}")
+        self.lgr.info(f"Input box: display text = {self.input_box.displayText()}; mask = '{self.input_box.inputMask()}'")
+        self.clear_active_row()
         if resp:
-            self.clear_active_row()
-            self.message_box.setText(f"box[{self.active_row}-{self.active_box}] has focus. Text = '{resp}'")
+            self.message_box.setText(f"row[{self.active_row}] is active. Text = '{resp}'")
             self.current_response = resp
             current_box = 0
             for letter in resp:
                 self.guess_boxes[self.active_row][current_box].setText(letter)
                 current_box += 1
-        # self.active_box = 0
 
     def process_response(self):
         """'Enter' key was pressed so take the current response and check if it is a valid word."""
         entry = self.current_response
+        self.lgr.info(f">> Process response '{entry}'.")
         if not entry:
             return
-        self.lgr.info(f">> Process response '{entry}'.")
+        if entry in all_words:
+            self.lgr.info(f"'{entry}' is a valid word.")
+            self.accept_current_guess()
+            self.active_row += 1
+            self.current_response = ''
+            self.input_box.clear()
+        else:
+            self.message_box.setText(f"'{entry}' is NOT a valid word.")
 
     def clear_active_row(self):
         for i in range(self.ge.word_length):
             self.guess_boxes[self.active_row][i].setText('')
+
+    def accept_current_guess(self):
+        # mark guess boxes
+        num_correct_letters = 0
+        for i in range(self.ge.word_length):
+            if self.current_response[i] == self.ge.current_target[i]:
+                self.guess_boxes[self.active_row][i].setStyleSheet(f"{XLARGE_FONT}; {FONT_BOLD}; color: black; background: green")
+                num_correct_letters += 1
+                self.lgr.info(f"num correct letters = {num_correct_letters}")
+            elif self.current_response[i] in self.ge.current_target:
+                self.guess_boxes[self.active_row][i].setStyleSheet(f"{XLARGE_FONT}; {FONT_BOLD}; color: black; background: yellow")
+            else:
+                self.guess_boxes[self.active_row][i].setStyleSheet(f"{XLARGE_FONT}; color: white; background: gray")
+        # mark result boxes
+        for j in range(len(self.result_boxes)):
+            check_letter = self.result_boxes[j].text()
+            if check_letter in self.current_response:
+                if check_letter in self.ge.current_target:
+                    self.result_boxes[j].setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: green")
+                else:
+                    self.result_boxes[j].setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: red")
+        if num_correct_letters == self.ge.word_length:
+            self.victory()
+
+    def victory(self):
+        self.message_box.setText("Victory!")
 
     def update_clock(self):
         """Update the game clock when the game is active."""
@@ -315,6 +349,7 @@ class WordleUI(QMainWindow):
         self.clock.setText("{:02}:{:02}:{:02}".format(self.run_secs // 3600, self.run_secs % 3600 // 60, self.run_secs % 3600 % 60))
         # make sure keyboard input gets to the input box
         if not self.button_hover:
+            self.lgr.debug("set focus to input box")
             self.input_box.setFocus()
 
     def exit_inquiry(self):
