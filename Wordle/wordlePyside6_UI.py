@@ -37,14 +37,13 @@ FONT_BOLD   = "font-weight: bold;"
 INPUT_COLOR = "gray" # "rgb(241, 241, 241)"
 INFO_TEXT = ("   How to Play the Game:\n"
              "---------------------------------------------\n"
-             f"1) Using ONLY the displayed letters, enter a word (at least {MIN_WORD_LENGTH} letters long) in the 'Try' box.\n\n"
-             "2) Any number of each displayed letter is allowed, but the Central letter MUST be present in the word.\n\n"
-             "3) Press ENTER to evaluate your guess.\n\n"
-             "4) FYI, most simple plurals are just ignored... \n\n"
-             "5) You can press the space bar to scramble the PLACEMENT of the outer letters.\n\n"
-             "6) Your Valid or Invalid guesses are displayed in the appropriate boxes.\n\n"
-             "7) Pangrams are words that use ALL seven letters -- and earn DOUBLE points!\n\n"
-             "8) Exit the game when you are ready and your game information will be saved to a JSON file.")
+             f"1) You are trying to guess the hidden {MIN_WORD_LENGTH}-letter word.\n\n"
+             f"2) With the keyboard type a {MIN_WORD_LENGTH}-letter word and press ENTER to evaluate it.\n\n"
+             "3) A letter in the correct position will shade green.\n\n"
+             "4) A letter present in the hidden word but in the wrong position in your guess will shade yellow.\n\n"
+             "5) A letter NOT present in the hidden word will shade grey.\n\n"
+             "6) You have six attempts to find the hidden word.\n\n"
+             "7) Exit the game when you are ready and your game information will be saved to a JSON file.")
 ORDERED_LETTERS = "EAOIUYSRLTNDCPMHGBKWFVZJXQ"
 WDUI_DEBUG = False
 
@@ -108,7 +107,7 @@ class WordleUI(QMainWindow):
 
         main_layout = QVBoxLayout()
         main_layout.addLayout(self.create_top_section())
-        main_layout.addLayout(self.create_guess_section())
+        main_layout.addLayout(self.create_guess_boxes())
         main_layout.addWidget(self.create_message_box())
         main_layout.addLayout(self.create_result_section())
         main_layout.addLayout(self.create_button_section())
@@ -143,7 +142,8 @@ class WordleUI(QMainWindow):
         self.input_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.input_box.setFrame(False)
         self.input_box.setReadOnly(False)
-        self.input_box.setMaxLength(self.ge.word_length)
+        # restrict acceptable input to 5 uppercase letters
+        self.input_box.setInputMask(">AAAAA")
         self.input_box.setStyleSheet(f"{SMALL_FONT} color: {INPUT_COLOR}; background: {INPUT_COLOR}")
         self.input_box.textEdited.connect(self.response_change)
         self.input_box.returnPressed.connect(self.process_response)
@@ -177,15 +177,45 @@ class WordleUI(QMainWindow):
         return self.message_box
 
     @staticmethod
-    def create_guess_box():
+    def create_guess_box(p_text:str=''):
         guess_box = QLabel()
         guess_box.setStyleSheet(f"color: blue; background: white; {XLARGE_FONT}")
         guess_box.resize(75,75)
         guess_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
         guess_box.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
+        if p_text:
+            guess_box.setText(p_text)
         return guess_box
 
+    def create_guess_boxes(self):
+        qvb_layout = QVBoxLayout()
+        row_len = self.ge.word_length
+        num_rows = self.ge.num_rows
+        self.guesses = [[self.create_guess_box(f"{j}-{i}") for i in range(row_len)] for j in range(num_rows)]
+        for j in range(num_rows):
+            for k in range(row_len):
+                self.lgr.info(self.guesses[j][k].text())
+
+        self.guess_rows = []
+        for k in range(num_rows):
+            self.lgr.debug(f"Setting guess row #{k}")
+            self.guess_rows.append(QHBoxLayout())
+            left_spacer = QLabel()
+            self.guess_rows[k].addWidget(left_spacer)
+            self.guess_rows[k].setStretchFactor(left_spacer, 2)
+            for l in range(row_len):
+                self.lgr.debug(f"Setting guess box #{k}-{l}")
+                self.guess_rows[k].addWidget(self.guesses[k][l])
+                self.guess_rows[k].setStretchFactor(self.guesses[k][l], 1)
+            right_spacer = QLabel()
+            self.guess_rows[k].addWidget(right_spacer)
+            self.guess_rows[k].setStretchFactor(right_spacer, 2)
+            qvb_layout.addItem(self.guess_rows[k])
+        return qvb_layout
+
     def create_guess_section(self):
+        self.create_guess_boxes()
+
         qvb_layout = QVBoxLayout()
         self.guess_boxes = []
         for i in range(30):
@@ -286,6 +316,8 @@ class WordleUI(QMainWindow):
         self.lock_count = 0
         self.run_secs += 1
         self.clock.setText("{:02}:{:02}:{:02}".format(self.run_secs // 3600, self.run_secs % 3600 // 60, self.run_secs % 3600 % 60))
+        # make sure we can always handle user input
+        self.input_box.setFocus()
 
     def exit_inquiry(self):
         """Confirm that the user wants to exit the current game."""
