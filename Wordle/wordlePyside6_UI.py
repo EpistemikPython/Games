@@ -17,7 +17,7 @@ from enum import IntEnum
 from sys import argv
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-                               QPushButton, QMainWindow, QMessageBox, QLineEdit)
+                               QPushButton, QMainWindow, QMessageBox, QLineEdit, QFrame)
 from wordleGameEngine import *
 
 class WdFontSize(IntEnum):
@@ -32,9 +32,9 @@ class WdFontSize(IntEnum):
 
 SMALL_FONT  = f"font-size: {WdFontSize.Small}pt;"
 MEDIUM_FONT = f"font-size: {WdFontSize.Medium}pt;"
-LARGE_FONT  = f"font-size: {WdFontSize.Large}pt;"
+XLARGE_FONT = f"font-size: {WdFontSize.Xlarge}pt;"
 FONT_BOLD   = "font-weight: bold;"
-FONT_ITALIC = "font-style: italic;"
+INPUT_COLOR = "gray" # "rgb(241, 241, 241)"
 INFO_TEXT = ("   How to Play the Game:\n"
              "---------------------------------------------\n"
              f"1) Using ONLY the displayed letters, enter a word (at least {MIN_WORD_LENGTH} letters long) in the 'Try' box.\n\n"
@@ -98,8 +98,8 @@ class WordleUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("My Wordle Game")
-        # pixels: dx from left, dx from top, width, height
-        self.setGeometry(500, 50, 640, 640)
+        # pixels: dx from left, dy from top, width, height
+        self.setGeometry(500, 50, 600, 750)
 
         self.lgr = log_control.get_logger()
         self.lgr.log(DEFAULT_LOG_LEVEL, f"{self.windowTitle()} runtime = {get_current_time()}")
@@ -107,7 +107,8 @@ class WordleUI(QMainWindow):
         self.ge = GameEngine(self.lgr)
 
         main_layout = QVBoxLayout()
-        main_layout.addLayout(self.create_guess_rows())
+        main_layout.addLayout(self.create_top_section())
+        main_layout.addLayout(self.create_guess_section())
         main_layout.addWidget(self.create_message_box())
         main_layout.addLayout(self.create_result_section())
         main_layout.addLayout(self.create_button_section())
@@ -120,9 +121,10 @@ class WordleUI(QMainWindow):
 
     def reset(self):
         """Reset all the items needed to start a new game."""
-        self.lgr.info("\n\nStarting a NEW Game!")
+        self.lgr.info("Starting a NEW Game!")
         self.ge.start()
-        self.guess_boxes[0].setFocus()
+        self.current_response = ''
+        self.input_box.setFocus()
         self.active_row = 0
         self.active_box = 0
         # game clock
@@ -135,6 +137,37 @@ class WordleUI(QMainWindow):
         self.ge.save_record()
         super().close()
 
+    def create_top_section(self):
+        """The input and clock section of the UI."""
+        self.input_box = QLineEdit()
+        self.input_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.input_box.setFrame(False)
+        self.input_box.setReadOnly(False)
+        self.input_box.setMaxLength(self.ge.word_length)
+        self.input_box.setStyleSheet(f"{SMALL_FONT} color: {INPUT_COLOR}; background: {INPUT_COLOR}")
+        self.input_box.textEdited.connect(self.response_change)
+        self.input_box.returnPressed.connect(self.process_response)
+
+        self.clock = QLabel()
+        self.clock.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+        self.update_seconds = 1
+        cfont = self.font()
+        cfont.setPointSize(WdFontSize.Medium)
+        self.clock.setFont(cfont)
+        timer = QTimer(self)
+        timer.timeout.connect(self.update_clock)
+        timer.start(self.update_seconds * 1000) # update interval
+
+        qhb_layout = QHBoxLayout()
+        qhb_layout.addWidget(self.input_box)
+        qhb_layout.setStretchFactor(self.input_box, 1)
+        left_spacer = QLabel()
+        qhb_layout.addWidget(left_spacer)
+        qhb_layout.setStretchFactor(left_spacer, 20)
+        qhb_layout.addWidget(self.clock)
+        qhb_layout.setStretchFactor(self.clock, 4)
+        return qhb_layout
+
     def create_message_box(self):
         self.message_box = QLineEdit()
         self.message_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -143,35 +176,34 @@ class WordleUI(QMainWindow):
         self.message_box.setStyleSheet(f"{SMALL_FONT} color:red")
         return self.message_box
 
-    def create_guess_box(self):
-        guess_box = QLineEdit()
-        guess_box.setText(' ')
-        guess_box.setStyleSheet(f"color: blue; background: white; font-size: {WdFontSize.Xlarge}pt")
-        guess_box.setFrame(True)
-        guess_box.resize(64,64)
-        guess_box.textEdited.connect(self.response_change)
-        guess_box.returnPressed.connect(self.process_response)
+    @staticmethod
+    def create_guess_box():
+        guess_box = QLabel()
+        guess_box.setStyleSheet(f"color: blue; background: white; {XLARGE_FONT}")
+        guess_box.resize(75,75)
         guess_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        guess_box.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
         return guess_box
 
-    def create_guess_rows(self):
+    def create_guess_section(self):
         qvb_layout = QVBoxLayout()
         self.guess_boxes = []
         for i in range(30):
             self.guess_boxes.append(self.create_guess_box())
         self.lgr.info(f"Have {len(self.guess_boxes)} guess boxes.")
 
+        row_len = self.ge.word_length
         self.guess_rows = []
         for k in range(6):
-            self.lgr.info(f"Setting guess row #{k}")
+            self.lgr.debug(f"Setting guess row #{k}")
             self.guess_rows.append(QHBoxLayout())
             left_spacer = QLabel()
             self.guess_rows[k].addWidget(left_spacer)
             self.guess_rows[k].setStretchFactor(left_spacer, 2)
-            for l in range(5):
-                self.lgr.info(f"Setting guess box #{k}-{l}")
-                self.guess_rows[k].addWidget(self.guess_boxes[(5*k)+l])
-                self.guess_rows[k].setStretchFactor(self.guess_boxes[(5*k)+l], 1)
+            for l in range(row_len):
+                self.lgr.debug(f"Setting guess box #{k}-{l}")
+                self.guess_rows[k].addWidget(self.guess_boxes[(row_len*k)+l])
+                self.guess_rows[k].setStretchFactor(self.guess_boxes[(row_len*k)+l], 1)
             right_spacer = QLabel()
             self.guess_rows[k].addWidget(right_spacer)
             self.guess_rows[k].setStretchFactor(right_spacer, 2)
@@ -180,11 +212,9 @@ class WordleUI(QMainWindow):
 
     @staticmethod
     def create_result_box(p_letter:str):
-        result_box = QLineEdit()
+        result_box = QLabel()
         result_box.setText(p_letter)
-        result_box.setReadOnly(True)
         result_box.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: black")
-        result_box.setFrame(False)
         result_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
         return result_box
 
@@ -210,22 +240,12 @@ class WordleUI(QMainWindow):
         return qvb_layout
 
     def create_button_section(self):
-        """The instructions and exit/new game buttons and clock section of the UI."""
+        """The instructions and exit/new game buttons of the UI."""
         info_btn = QPushButton("Game Instructions")
         info_btn.setStyleSheet(f"{MEDIUM_FONT} color: yellow; background: blue")
         info_btn.setAutoDefault(False)
         info_btn.setDefault(False)
         info_btn.clicked.connect(display_info)
-
-        self.clock = QLabel()
-        self.clock.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
-        self.update_seconds = 1
-        cfont = self.font()
-        cfont.setPointSize(WdFontSize.Medium)
-        self.clock.setFont(cfont)
-        timer = QTimer(self)
-        timer.timeout.connect(self.update_clock)
-        timer.start(self.update_seconds * 1000) # update interval
 
         newgame_exit_btn = QPushButton("Exit Game?")
         newgame_exit_btn.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: red; background: yellow")
@@ -235,17 +255,22 @@ class WordleUI(QMainWindow):
 
         qhb_layout = QHBoxLayout()
         qhb_layout.addWidget(info_btn)
-        qhb_layout.addWidget(self.clock)
         qhb_layout.addWidget(newgame_exit_btn)
         return qhb_layout
 
     def response_change(self, resp:str):
+        """Parse the current response and place the appropriate letters in the proper guess boxes."""
         self.lgr.info(f"Response changed to: '{resp}'")
         if resp:
             self.message_box.setText(f"box[{self.active_row}-{self.active_box}] has focus. Text = '{resp}'")
+            self.current_response = resp
 
     def process_response(self):
-        pass
+        """'Enter' key was pressed so take the current response and check if it is a valid word."""
+        entry = self.current_response
+        if not entry:
+            return
+        self.lgr.info(f">> Process response '{entry}'.")
 
     def update_clock(self):
         """Update the game clock when the game is active."""
