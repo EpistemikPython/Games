@@ -1030,8 +1030,6 @@ all_wordle_words = [
     "BETTA",
     "BETTY",
     "BEVEL",
-    "BEVER",
-    "BEVOR",
     "BEVUE",
     "BEVVY",
     "BEWET",
