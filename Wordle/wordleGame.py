@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.11+"
 __created__ = "2026-07-05"
-__updated__ = "2026-07-05"
+__updated__ = "2026-07-06"
 
 import subprocess
 import random
@@ -44,6 +44,7 @@ MEDIUM_FONT = f"font-size: {WdFontSize.Medium}pt;"
 XLARGE_FONT = f"font-size: {WdFontSize.Xlarge}pt;"
 FONT_BOLD   = "font-weight: bold;"
 INPUT_COLOR = "gray" # "rgb(241, 241, 241)"
+
 INFO_TEXT = ("   How to Play the Game:\n"
              "---------------------------------------------\n"
              f"1) You are trying to guess the hidden {MIN_WORD_LENGTH}-letter word.\n\n"
@@ -53,37 +54,25 @@ INFO_TEXT = ("   How to Play the Game:\n"
              "5) A letter NOT present in the hidden word will shade grey.\n\n"
              "6) You have six attempts to find the hidden word.\n\n"
              "7) Exit the game when you are ready and your game information will be saved to a JSON file.")
+
 ORDERED_LETTERS = "EAOIUYSRLTNDCPMHGBKWFVZJXQ"
-WDUI_DEBUG = False
+GUESS_BASIC_STYLESHEET  = f"{XLARGE_FONT}; color: blue;  background: white"
+GUESS_EXACT_STYLESHEET  = f"{XLARGE_FONT}; color: black; background: green; {FONT_BOLD}"
+GUESS_OCCUR_STYLESHEET  = f"{XLARGE_FONT}; color: black; background: yellow"
+GUESS_ABSENT_STYLESHEET = f"{XLARGE_FONT}; color: white; background: gray"
+RESULT_BASIC_STYLESHEET  = f"{FONT_BOLD} {MEDIUM_FONT} color: black"
+RESULT_OCCUR_STYLESHEET  = f"{FONT_BOLD} {MEDIUM_FONT} color: green"
+RESULT_ABSENT_STYLESHEET = f"{FONT_BOLD} {MEDIUM_FONT} color: red"
 
-def display_info():
-    infobox = QMessageBox()
-    infobox.setIcon(QMessageBox.Icon.Information)
-    infobox.setStyleSheet(SMALL_FONT)
-    infobox.setText(INFO_TEXT)
-    # infobox.setMinimumWidth(960) # DOES NOTHING... ?!
-    infobox.exec()
-
-def confirm_exit():
-    confirm_box = QMessageBox()
-    confirm_box.setIcon(QMessageBox.Icon.Question)
-    confirm_box.setStyleSheet("font-size: 16pt")
-    confirm_box.setText("    Are you SURE you want to EXIT the game?    ")
-    cancel_button = confirm_box.addButton("No! >> Continue the game...", QMessageBox.ButtonRole.ActionRole)
-    cancel_button.setStyleSheet("background: chartreuse")
-    newgame_button = confirm_box.addButton("Yes >> START a NEW game!", QMessageBox.ButtonRole.ActionRole)
-    newgame_button.setStyleSheet("color: green; background: MediumVioletRed")
-    proceed_button = confirm_box.addButton("Yes >> EXIT the game.", QMessageBox.ButtonRole.ActionRole)
-    proceed_button.setStyleSheet("color: yellow; background: purple")
-    confirm_box.setDefaultButton(cancel_button)
-    return confirm_box, proceed_button, cancel_button, newgame_button
+WORDLE_UI_DEBUG = False
+WORDLE_GE_DEBUG = False
 
 def check_screen_locked(lgr:logging.Logger=None) -> bool:
     """See if a screensaver is active."""
     try:
         output = subprocess.check_output(["mate-screensaver-command", "-q"]).decode()
         if output:
-            if lgr and WDUI_DEBUG:
+            if lgr and WORDLE_UI_DEBUG:
                 lgr.debug(f"Mate screensaver output: {output}")
             return "is active" in output
     except FileNotFoundError:
@@ -92,11 +81,11 @@ def check_screen_locked(lgr:logging.Logger=None) -> bool:
     try:
         output = subprocess.check_output(["gnome-screensaver-command", "-q"]).decode()
         if output:
-            if lgr and WDUI_DEBUG:
+            if lgr and WORDLE_UI_DEBUG:
                 lgr.debug(f"Gnome screensaver output: {output}")
             return "is active" in output
     except FileNotFoundError:
-        if lgr and WDUI_DEBUG:
+        if lgr and WORDLE_UI_DEBUG:
             lgr.warning("Gnome screensaver NOT found!")
     return False
 
@@ -107,7 +96,7 @@ class WordleUI(QMainWindow):
         super().__init__()
         self.setWindowTitle("My Wordle Game")
         # pixels: dx from left, dy from top, width, height
-        self.setGeometry(500, 50, 600, 750)
+        self.setGeometry(575, 140, 600, 750)
 
         self.lgr = log_control.get_logger()
         self.lgr.log(DEFAULT_LOG_LEVEL, f"{self.windowTitle()} runtime = {get_current_time()}")
@@ -131,11 +120,14 @@ class WordleUI(QMainWindow):
         """Reset all the items needed to start a new game."""
         self.lgr.info("Starting a NEW Game!")
         self.ge.start()
+        self.active = True
         self.current_response = ''
-        self.input_box.setFocus()
+        self.input_box.clear()
+        self.reset_guesses()
+        self.reset_results()
         self.active_row = 0
-        self.active_box = 0
         self.button_hover = False
+        self.input_box.setFocus()
         # game clock
         self.clock.setText("00")
         self.run_secs = 0
@@ -189,7 +181,6 @@ class WordleUI(QMainWindow):
     @staticmethod
     def create_guess_box(p_text:str=''):
         guess_box = QLabel()
-        guess_box.setStyleSheet(f"color: blue; background: white; {XLARGE_FONT}")
         guess_box.resize(75,75)
         guess_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
         guess_box.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
@@ -224,11 +215,16 @@ class WordleUI(QMainWindow):
             qvb_layout.addItem(layout_rows[k])
         return qvb_layout
 
+    def reset_guesses(self):
+        for i in range(self.ge.num_rows):
+            for j in range(self.ge.word_length):
+                self.guess_boxes[i][j].setText('')
+                self.guess_boxes[i][j].setStyleSheet(GUESS_BASIC_STYLESHEET)
+
     @staticmethod
     def create_result_box(p_letter:str):
         result_box = QLabel()
         result_box.setText(p_letter)
-        result_box.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: black")
         result_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
         return result_box
 
@@ -252,9 +248,14 @@ class WordleUI(QMainWindow):
             qvb_layout.addItem(self.consonant_rows[k])
         return qvb_layout
 
-    # Override eventFilter to catch QEvent.Type.Enter/Leave
+    def reset_results(self):
+        for i in range(len(ORDERED_LETTERS)):
+            self.result_boxes[i].setStyleSheet(RESULT_BASIC_STYLESHEET)
+
+    # prevent input box from stealing focus when cursor over a button
     def eventFilter(self, obj, event):
-        if obj == self.info_btn or obj == self.newgame_exit_btn:
+        """Override eventFilter to catch QEvent.Type.Enter/Leave."""
+        if obj == self.info_btn or obj == self.newgame_btn or obj == self.exit_btn:
             if event.type() == QEvent.Type.Enter:
                 self.lgr.debug("Button hover.")
                 self.button_hover = True
@@ -264,31 +265,41 @@ class WordleUI(QMainWindow):
         return super().eventFilter(obj, event)
 
     def create_button_section(self):
-        """The instructions and exit/new game buttons of the UI."""
-        self.info_btn = QPushButton("Game Instructions")
+        """The instructions, exit and new game buttons of the UI."""
+        self.info_btn = QPushButton("Instructions")
         self.info_btn.installEventFilter(self)
         self.info_btn.setStyleSheet(f"{MEDIUM_FONT} color: yellow; background: blue")
         self.info_btn.setAutoDefault(False)
         self.info_btn.setDefault(False)
-        self.info_btn.clicked.connect(display_info)
+        self.info_btn.clicked.connect(self.display_info)
 
-        self.newgame_exit_btn = QPushButton("Exit Game?")
-        self.newgame_exit_btn.installEventFilter(self)
-        self.newgame_exit_btn.setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: red; background: yellow")
-        self.newgame_exit_btn.setAutoDefault(False)
-        self.newgame_exit_btn.setDefault(False)
-        self.newgame_exit_btn.clicked.connect(self.exit_inquiry)
+        self.newgame_btn = QPushButton("New Game?")
+        self.newgame_btn.installEventFilter(self)
+        self.newgame_btn.setStyleSheet(f"{MEDIUM_FONT} color: green; background: orange")
+        self.newgame_btn.setAutoDefault(False)
+        self.newgame_btn.setDefault(False)
+        self.newgame_btn.clicked.connect(self.new_game_inquiry)
+
+        self.exit_btn = QPushButton("Exit Game?")
+        self.exit_btn.installEventFilter(self)
+        self.exit_btn.setStyleSheet(f"{MEDIUM_FONT} color: red; background: yellow")
+        self.exit_btn.setAutoDefault(False)
+        self.exit_btn.setDefault(False)
+        self.exit_btn.clicked.connect(self.exit_inquiry)
 
         qhb_layout = QHBoxLayout()
         qhb_layout.addWidget(self.info_btn)
-        qhb_layout.addWidget(self.newgame_exit_btn)
+        qhb_layout.addWidget(self.newgame_btn)
+        qhb_layout.addWidget(self.exit_btn)
         return qhb_layout
 
     def response_change(self, resp:str):
         """Parse the current response and place the appropriate letters in the proper guess boxes."""
+        if not self.active:
+            return
         self.lgr.info(f"Response changed to: '{resp}'; len(resp) = {len(resp)}")
         self.lgr.info(f"Input box: display text = {self.input_box.displayText()}; mask = '{self.input_box.inputMask()}'")
-        self.clear_active_row()
+        self.clear_guess_row(self.active_row)
         if resp:
             self.message_box.setText(f"row[{self.active_row}] is active. Text = '{resp}'")
             self.current_response = resp
@@ -298,55 +309,57 @@ class WordleUI(QMainWindow):
                 current_box += 1
 
     def process_response(self):
-        """'Enter' key was pressed so take the current response and check if it is a valid word."""
+        """'Enter' key was pressed so check if the current response is a valid word then mark the guess and result boxes."""
+        if not self.active:
+            return
         entry = self.current_response
         self.lgr.info(f">> Process response '{entry}'.")
         if not entry:
             return
-        if entry in all_words:
+        if self.ge.check_guess(entry):
             self.lgr.info(f"'{entry}' is a valid word.")
-            self.accept_current_guess()
+            self.mark_current_guess()
             self.active_row += 1
             self.current_response = ''
             self.input_box.clear()
         else:
             self.message_box.setText(f"'{entry}' is NOT a valid word.")
 
-    def clear_active_row(self):
+    def clear_guess_row(self, row_num:int):
         for i in range(self.ge.word_length):
-            self.guess_boxes[self.active_row][i].setText('')
+            self.guess_boxes[row_num][i].setText('')
 
-    def accept_current_guess(self):
+    def mark_current_guess(self):
         # mark guess boxes
-        num_correct_letters = 0
+        checked = ""
         for i in range(self.ge.word_length):
             if self.current_response[i] == self.ge.current_target[i]:
-                self.guess_boxes[self.active_row][i].setStyleSheet(f"{XLARGE_FONT}; {FONT_BOLD}; color: black; background: green")
-                num_correct_letters += 1
-                self.lgr.info(f"num correct letters = {num_correct_letters}")
-            elif self.current_response[i] in self.ge.current_target:
-                self.guess_boxes[self.active_row][i].setStyleSheet(f"{XLARGE_FONT}; {FONT_BOLD}; color: black; background: yellow")
+                self.guess_boxes[self.active_row][i].setStyleSheet(GUESS_EXACT_STYLESHEET)
+            elif self.ge.occurrence_match(i, self.current_response, checked):
+                self.guess_boxes[self.active_row][i].setStyleSheet(GUESS_OCCUR_STYLESHEET)
             else:
-                self.guess_boxes[self.active_row][i].setStyleSheet(f"{XLARGE_FONT}; color: white; background: gray")
+                self.guess_boxes[self.active_row][i].setStyleSheet(GUESS_ABSENT_STYLESHEET)
+            checked += self.current_response[i]
         # mark result boxes
         for j in range(len(self.result_boxes)):
             check_letter = self.result_boxes[j].text()
             if check_letter in self.current_response:
                 if check_letter in self.ge.current_target:
-                    self.result_boxes[j].setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: green")
+                    self.result_boxes[j].setStyleSheet(RESULT_OCCUR_STYLESHEET)
                 else:
-                    self.result_boxes[j].setStyleSheet(f"{FONT_BOLD} {MEDIUM_FONT} color: red")
-        if num_correct_letters == self.ge.word_length:
+                    self.result_boxes[j].setStyleSheet(RESULT_ABSENT_STYLESHEET)
+        if self.current_response == self.ge.current_target:
             self.victory()
 
     def victory(self):
         self.message_box.setText("Victory!")
+        self.active = False
 
     def update_clock(self):
         """Update the game clock when the game is active."""
         log_pause = 600 if self.lock_count > 10 else 60
         locked = check_screen_locked(self.lgr) # pause when the screen is locked
-        if locked or self.isMinimized() or self.isHidden(): # pause when the game is inactive
+        if not self.active or locked or self.isMinimized() or self.isHidden(): # pause when the game is inactive
             self.pause_secs += 1
             if self.pause_secs % log_pause == 0:
                 self.lock_count += 1
@@ -363,18 +376,60 @@ class WordleUI(QMainWindow):
 
     def exit_inquiry(self):
         """Confirm that the user wants to exit the current game."""
-        confirm_box, initiate_exit_button, continue_game_button, new_game_button = confirm_exit()
+        confirm_box, initiate_exit_button, continue_game_button = self.confirm_exit()
         confirm_box.exec()
         if confirm_box.clickedButton() == initiate_exit_button:
             self.lgr.info("Proceed to EXIT!")
             self.close()
         elif confirm_box.clickedButton() == continue_game_button:
             self.lgr.info("Continue the game...")
+
+    def new_game_inquiry(self):
+        """Confirm that the user wants to start a NEW game."""
+        confirm_box, continue_game_button, new_game_button = self.confirm_new_game()
+        confirm_box.exec()
+        if confirm_box.clickedButton() == continue_game_button:
+            self.lgr.info("Continue the game...")
         elif confirm_box.clickedButton() == new_game_button:
             self.lgr.info("Exit and START a new game.")
             self.ge.save_record()
             # new game
             self.reset()
+
+    @staticmethod
+    def display_info():
+        infobox = QMessageBox()
+        infobox.setIcon(QMessageBox.Icon.Information)
+        infobox.setStyleSheet(SMALL_FONT)
+        infobox.setText(INFO_TEXT)
+        # infobox.setMinimumWidth(960) # DOES NOTHING... ?!
+        infobox.exec()
+
+    @staticmethod
+    def confirm_exit():
+        confirm_box = QMessageBox()
+        confirm_box.setIcon(QMessageBox.Icon.Question)
+        confirm_box.setStyleSheet("font-size: 16pt")
+        confirm_box.setText("    Are you SURE you want to EXIT the game?    ")
+        cancel_button = confirm_box.addButton("No! >> Continue the game...", QMessageBox.ButtonRole.ActionRole)
+        cancel_button.setStyleSheet("background: chartreuse")
+        proceed_button = confirm_box.addButton("Yes >> EXIT the game.", QMessageBox.ButtonRole.ActionRole)
+        proceed_button.setStyleSheet("color: yellow; background: purple")
+        confirm_box.setDefaultButton(cancel_button)
+        return confirm_box, proceed_button, cancel_button
+
+    @staticmethod
+    def confirm_new_game():
+        confirm_box = QMessageBox()
+        confirm_box.setIcon(QMessageBox.Icon.Question)
+        confirm_box.setStyleSheet("font-size: 16pt")
+        confirm_box.setText("    Are you SURE you want to EXIT and start a NEW game?    ")
+        cancel_button = confirm_box.addButton("No! >> Continue the game...", QMessageBox.ButtonRole.ActionRole)
+        cancel_button.setStyleSheet("background: chartreuse")
+        newgame_button = confirm_box.addButton("Yes >> START a NEW game!", QMessageBox.ButtonRole.ActionRole)
+        newgame_button.setStyleSheet("color: green; background: MediumVioletRed")
+        confirm_box.setDefaultButton(cancel_button)
+        return confirm_box, cancel_button, newgame_button
 # END class WordleUI
 
 # noinspection PyAttributeOutsideInit
@@ -390,34 +445,41 @@ class GameEngine:
         self.num_rows = DEFAULT_NUM_ROWS
 
     def start(self):
-        self.current_guess = ""
+        self.previous_guess = ""
         self.num_guesses = 0
-        self.saved = False
         self.good_guesses = []
-        self.current_target = all_words[random.randrange(0, len(all_words))]
+        self.bad_guesses = []
+        self.current_target = "PUPPY" if WORDLE_GE_DEBUG else all_words[random.randrange(0, len(all_words))]
         self.lgr.info(f"current target word = {self.current_target}")
-
-    def save_record(self):
-        # save all important information from this game
-        if not self.saved and self.good_guesses:
-            self.good_guesses.sort()
-            game_record = {"TARGET WORD":self.current_target, "GOOD GUESSES":self.good_guesses}
-            grfile = save_to_json(f"WordleGameRecord_{self.current_target}", game_record)
-            self.lgr.info(f"Saved game record as: {grfile}")
-            self.saved = True
+        self.saved = False
 
     def check_guess(self, resp:str) -> bool:
         """Check for a good response."""
         self.lgr.debug(f"check response '{resp}':")
-        self.current_guess = get_clean_word(resp)
-        if self.current_guess == self.current_target:
-            self.lgr.info(f"'{resp}' is the answer!")
-            return True
-        if self.current_guess in all_words:
-            self.lgr.info(f"{self.current_guess} is a GOOD guess!")
-            self.good_guesses.append(self.current_guess)
+        if resp == self.current_target or resp in all_words:
+            self.previous_guess = resp
             self.num_guesses += 1
+            self.good_guesses.append(resp)
+            return True
+        self.bad_guesses.append(resp)
         return False
+
+    def occurrence_match(self, idx:int, p_resp:str, p_checked:str) -> bool:
+        lett = p_resp[idx]
+        num_in_target = self.current_target.count(lett)
+        num_in_guess = p_resp.count(lett)
+        num_in_checked = p_checked.count(lett)
+        if num_in_target and num_in_target >= num_in_guess and num_in_target >= num_in_checked:
+            return True
+        return False
+
+    def save_record(self):
+        # save all important information from this game
+        if not self.saved and self.good_guesses:
+            game_record = {"TARGET WORD":self.current_target, "GOOD GUESSES":self.good_guesses, "BAD GUESSES":self.bad_guesses}
+            grfile = save_to_json(f"WordleGameRecord_{self.current_target}", game_record)
+            self.lgr.info(f"Saved game record as: {grfile}")
+            self.saved = True
 # END class GameEngine
 
 
