@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.11+"
 __created__ = "2026-07-05"
-__updated__ = "2026-07-06"
+__updated__ = "2026-07-07"
 
 import subprocess
 import random
@@ -45,17 +45,21 @@ XLARGE_FONT = f"font-size: {WdFontSize.Xlarge}pt;"
 FONT_BOLD   = "font-weight: bold;"
 INPUT_COLOR = "gray" # "rgb(241, 241, 241)"
 
-INFO_TEXT = ("   How to Play the Game:\n"
+ORDERED_LETTERS = "AEIOUYLNRSTCDHMPBFGKWJQVXZ"
+INFO_TEXT = ("           How to Play Wordle:\n"
              "---------------------------------------------\n"
-             f"1) You are trying to guess the hidden {MIN_WORD_LENGTH}-letter word.\n\n"
+             f"1) You are trying to guess the secret {MIN_WORD_LENGTH}-letter word.\n\n"
              f"2) With the keyboard type a {MIN_WORD_LENGTH}-letter word and press ENTER to evaluate it.\n\n"
              "3) A letter in the correct position will shade green.\n\n"
-             "4) A letter present in the hidden word but in the wrong position in your guess will shade yellow.\n\n"
-             "5) A letter NOT present in the hidden word will shade grey.\n\n"
-             "6) You have six attempts to find the hidden word.\n\n"
-             "7) Exit the game when you are ready and your game information will be saved to a JSON file.")
+             "4) A letter present in the secret word but in the wrong position in your guess will shade yellow.\n\n"
+             "5) A letter NOT present in the secret word will shade grey.\n\n"
+             f"6) You have {DEFAULT_NUM_ROWS} attempts to find the secret word.\n\n"
+             "7) When you are ready, exit the game or start a new game and your game information will be saved to a JSON file.")
 
-ORDERED_LETTERS = "EAOIUYSRLTNDCPMHGBKWFVZJXQ"
+DEBUG_TARGET = "FELIS" # test words = MESSY, SHUSH, SILLY, AFFIX, SLIME, SLEET
+# "G/PUPPY" # test words = POLYP, APPLE, PAPER, PRIMP, PLUMP, UNDUE, UPPER, BUGGY
+WORDLE_DEBUG = True
+
 GUESS_BASIC_STYLESHEET  = f"{XLARGE_FONT}; color: blue;  background: white"
 GUESS_EXACT_STYLESHEET  = f"{XLARGE_FONT}; color: black; background: green; {FONT_BOLD}"
 GUESS_OCCUR_STYLESHEET  = f"{XLARGE_FONT}; color: black; background: yellow"
@@ -63,16 +67,15 @@ GUESS_ABSENT_STYLESHEET = f"{XLARGE_FONT}; color: white; background: gray"
 RESULT_BASIC_STYLESHEET  = f"{FONT_BOLD} {MEDIUM_FONT} color: black"
 RESULT_OCCUR_STYLESHEET  = f"{FONT_BOLD} {MEDIUM_FONT} color: green"
 RESULT_ABSENT_STYLESHEET = f"{FONT_BOLD} {MEDIUM_FONT} color: red"
-
-WORDLE_UI_DEBUG = False
-WORDLE_GE_DEBUG = False
+INPUTBOX_STYLESHEET = f"{SMALL_FONT} color: {INPUT_COLOR}; background: white" if WORDLE_DEBUG \
+                      else f"{SMALL_FONT} color: {INPUT_COLOR}; background: {INPUT_COLOR}"
 
 def check_screen_locked(lgr:logging.Logger=None) -> bool:
     """See if a screensaver is active."""
     try:
         output = subprocess.check_output(["mate-screensaver-command", "-q"]).decode()
         if output:
-            if lgr and WORDLE_UI_DEBUG:
+            if lgr and WORDLE_DEBUG:
                 lgr.debug(f"Mate screensaver output: {output}")
             return "is active" in output
     except FileNotFoundError:
@@ -81,11 +84,11 @@ def check_screen_locked(lgr:logging.Logger=None) -> bool:
     try:
         output = subprocess.check_output(["gnome-screensaver-command", "-q"]).decode()
         if output:
-            if lgr and WORDLE_UI_DEBUG:
+            if lgr and WORDLE_DEBUG:
                 lgr.debug(f"Gnome screensaver output: {output}")
             return "is active" in output
     except FileNotFoundError:
-        if lgr and WORDLE_UI_DEBUG:
+        if lgr and WORDLE_DEBUG:
             lgr.warning("Gnome screensaver NOT found!")
     return False
 
@@ -101,7 +104,7 @@ class WordleUI(QMainWindow):
         self.lgr = log_control.get_logger()
         self.lgr.log(DEFAULT_LOG_LEVEL, f"{self.windowTitle()} runtime = {get_current_time()}")
 
-        self.ge = GameEngine(self.lgr)
+        self.ge = WordleGameEngine(self.lgr)
 
         main_layout = QVBoxLayout()
         main_layout.addLayout(self.create_top_section())
@@ -121,7 +124,7 @@ class WordleUI(QMainWindow):
         self.lgr.info("Starting a NEW Game!")
         self.ge.start()
         self.active = True
-        self.current_response = ''
+        self.current_guess = ''
         self.input_box.clear()
         self.reset_guesses()
         self.reset_results()
@@ -146,7 +149,7 @@ class WordleUI(QMainWindow):
         self.input_box.setReadOnly(False)
         # restrict acceptable input to 5 uppercase letters
         self.input_box.setInputMask(">AAAAA")
-        self.input_box.setStyleSheet(f"{SMALL_FONT} color: {INPUT_COLOR}; background: white")
+        self.input_box.setStyleSheet(INPUTBOX_STYLESHEET)
         self.input_box.textEdited.connect(self.response_change)
         self.input_box.returnPressed.connect(self.process_response)
 
@@ -165,7 +168,7 @@ class WordleUI(QMainWindow):
         qhb_layout.setStretchFactor(self.input_box, 1)
         left_spacer = QLabel()
         qhb_layout.addWidget(left_spacer)
-        qhb_layout.setStretchFactor(left_spacer, 2)
+        qhb_layout.setStretchFactor(left_spacer, 2 if WORDLE_DEBUG else 20)
         qhb_layout.addWidget(self.clock)
         qhb_layout.setStretchFactor(self.clock, 2)
         return qhb_layout
@@ -297,12 +300,11 @@ class WordleUI(QMainWindow):
         """Parse the current response and place the appropriate letters in the proper guess boxes."""
         if not self.active:
             return
-        self.lgr.info(f"Response changed to: '{resp}'; len(resp) = {len(resp)}")
-        self.lgr.info(f"Input box: display text = {self.input_box.displayText()}; mask = '{self.input_box.inputMask()}'")
+        self.lgr.info(f"Response changed to '{resp}'; Input box text = {self.input_box.text()}")
         self.clear_guess_row(self.active_row)
+        self.message_box.setText(f"row[{self.active_row}] is active. Text = '{resp}'")
         if resp:
-            self.message_box.setText(f"row[{self.active_row}] is active. Text = '{resp}'")
-            self.current_response = resp
+            self.current_guess = resp
             current_box = 0
             for letter in resp:
                 self.guess_boxes[self.active_row][current_box].setText(letter)
@@ -312,7 +314,7 @@ class WordleUI(QMainWindow):
         """'Enter' key was pressed so check if the current response is a valid word then mark the guess and result boxes."""
         if not self.active:
             return
-        entry = self.current_response
+        entry = self.current_guess
         self.lgr.info(f">> Process response '{entry}'.")
         if not entry:
             return
@@ -320,9 +322,12 @@ class WordleUI(QMainWindow):
             self.lgr.info(f"'{entry}' is a valid word.")
             self.mark_current_guess()
             self.active_row += 1
-            self.current_response = ''
+            self.current_guess = ''
             self.input_box.clear()
+            if self.active and self.active_row >= DEFAULT_NUM_ROWS:
+                self.failure()
         else:
+            self.lgr.info(f"'{entry}' is NOT a valid word.")
             self.message_box.setText(f"'{entry}' is NOT a valid word.")
 
     def clear_guess_row(self, row_num:int):
@@ -333,26 +338,30 @@ class WordleUI(QMainWindow):
         # mark guess boxes
         checked = ""
         for i in range(self.ge.word_length):
-            if self.current_response[i] == self.ge.current_target[i]:
+            if self.current_guess[i] == self.ge.current_target[i]:
                 self.guess_boxes[self.active_row][i].setStyleSheet(GUESS_EXACT_STYLESHEET)
-            elif self.ge.occurrence_match(i, self.current_response, checked):
+            elif self.ge.occurrence_match(i, self.current_guess, checked):
                 self.guess_boxes[self.active_row][i].setStyleSheet(GUESS_OCCUR_STYLESHEET)
             else:
                 self.guess_boxes[self.active_row][i].setStyleSheet(GUESS_ABSENT_STYLESHEET)
-            checked += self.current_response[i]
+            checked += self.current_guess[i]
         # mark result boxes
         for j in range(len(self.result_boxes)):
             check_letter = self.result_boxes[j].text()
-            if check_letter in self.current_response:
+            if check_letter in self.current_guess:
                 if check_letter in self.ge.current_target:
                     self.result_boxes[j].setStyleSheet(RESULT_OCCUR_STYLESHEET)
                 else:
                     self.result_boxes[j].setStyleSheet(RESULT_ABSENT_STYLESHEET)
-        if self.current_response == self.ge.current_target:
+        if self.current_guess == self.ge.current_target:
             self.victory()
 
     def victory(self):
         self.message_box.setText("Victory!")
+        self.active = False
+
+    def failure(self):
+        self.message_box.setText(f"Fail... :(  The hidden word was '{self.ge.current_target}'.")
         self.active = False
 
     def update_clock(self):
@@ -433,10 +442,11 @@ class WordleUI(QMainWindow):
 # END class WordleUI
 
 # noinspection PyAttributeOutsideInit
-class GameEngine:
-    """The SpellingBee game internal data and procedures."""
-    def __init__(self, p_lgr:MhsLogger, p_len:int=5):
+class WordleGameEngine:
+    """The Wordle game internal data and procedures."""
+    def __init__(self, p_lgr:logging.Logger, p_len:int=5):
         self.lgr = p_lgr
+        print(f"type(p_lgr) = {type(p_lgr)}")
         # TODO: check and use specified word length
         if p_len <= MAX_WORD_LENGTH:
             pass
@@ -449,7 +459,7 @@ class GameEngine:
         self.num_guesses = 0
         self.good_guesses = []
         self.bad_guesses = []
-        self.current_target = "PUPPY" if WORDLE_GE_DEBUG else all_words[random.randrange(0, len(all_words))]
+        self.current_target = DEBUG_TARGET if WORDLE_DEBUG else all_words[random.randrange(0, len(all_words))]
         self.lgr.info(f"current target word = {self.current_target}")
         self.saved = False
 
@@ -464,12 +474,18 @@ class GameEngine:
         self.bad_guesses.append(resp)
         return False
 
-    def occurrence_match(self, idx:int, p_resp:str, p_checked:str) -> bool:
-        lett = p_resp[idx]
+    def occurrence_match(self, idx:int, p_guess:str, p_checked:str) -> bool:
+        """Identify letters in the guess that are present in the target but not in the same box."""
+        lett = p_guess[idx]
+        level = logging.INFO if WORDLE_DEBUG else logging.DEBUG
+        self.lgr.log(level, f"lett = '{lett}'; response = '{p_guess}'; checked = '{p_checked}'.")
         num_in_target = self.current_target.count(lett)
-        num_in_guess = p_resp.count(lett)
+        num_in_guess = p_guess.count(lett)
         num_in_checked = p_checked.count(lett)
-        if num_in_target and num_in_target >= num_in_guess and num_in_target >= num_in_checked:
+        self.lgr.log(level, f"num_in_target = {num_in_target}; num_in_guess = {num_in_guess}; num_in_checked = {num_in_checked}.")
+        if ( num_in_target and
+                ( (num_in_target >= num_in_guess and num_in_target >= num_in_checked)
+               or (num_in_guess >= num_in_target > num_in_checked) ) ):
             return True
         return False
 
@@ -480,14 +496,14 @@ class GameEngine:
             grfile = save_to_json(f"WordleGameRecord_{self.current_target}", game_record)
             self.lgr.info(f"Saved game record as: {grfile}")
             self.saved = True
-# END class GameEngine
+# END class WordleGameEngine
 
 
 log_control = MhsLogger(WordleUI.__name__, con_level = DEFAULT_LOG_LEVEL)
 
 if __name__ == "__main__":
     if len(argv) > 1:
-        print(f"Usage: python3 {get_filename(argv[0])}\nLaunch the SpellingBee game UI.")
+        print(f"Usage: python3 {get_filename(argv[0])}\nLaunch the Wordle game.")
         log_control.debug("Usage instructions.")
         exit(0)
     dialog = None
