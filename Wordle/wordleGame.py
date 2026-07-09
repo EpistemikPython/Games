@@ -16,6 +16,7 @@ import subprocess
 import random
 from sys import argv, path
 from PySide6.QtCore import Qt, QTimer, QEvent
+from PySide6.QtGui import QShortcut, QKeySequence
 from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                QPushButton, QMainWindow, QMessageBox, QLineEdit, QFrame)
 path.append("/home/marksa/git/Python/utils")
@@ -45,7 +46,7 @@ INFO_TEXT = ("           How to Play Wordle:\n"
              "5) A letter NOT present in the secret word will shade grey.\n\n"
              "6) Your entry will NOT be accepted if it is NOT a valid Wordle word.\n\n"
              f"7) You have {DEFAULT_NUM_ROWS} attempts to find the secret word.\n\n"
-             "8) When you are ready, exit the game or start a new word and your current game information will be saved to a JSON file.")
+             "8) You can eXit the game (Ctrl-Alt-X) or start a New word (Ctrl-N) and your current game information will be saved to a file.")
 
 DEBUG_TARGET = "FELIS" # test words = MESSY, LEAFY, SILLY, AFFIX, SLIME, FLESH
 # DEBUG_TARGET = "PUPPY" # test words = APPLE, PAPER, PLUMP, TAUPE, UPPER, GUPPY
@@ -105,6 +106,13 @@ class WordleUI(QMainWindow):
         main_layout.addWidget(self.create_message_box())
         main_layout.addLayout(self.create_result_section())
         main_layout.addLayout(self.create_button_section())
+
+        # key combination to get a new word
+        self.new_word_shortcut = QShortcut(QKeySequence("Ctrl+N"), self)
+        self.new_word_shortcut.activated.connect(self.reset)
+        # key combination to exit the game >> Ctrl-X does NOT work
+        self.exit_shortcut = QShortcut(QKeySequence("Ctrl+Alt+X"), self)
+        self.exit_shortcut.activated.connect(self.close)
 
         main_widget = QWidget()
         main_widget.setLayout(main_layout)
