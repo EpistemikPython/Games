@@ -10,11 +10,10 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.11+"
 __created__ = "2026-07-05"
-__updated__ = "2026-07-07"
+__updated__ = "2026-07-09"
 
 import subprocess
 import random
-from enum import IntEnum
 from sys import argv, path
 from PySide6.QtCore import Qt, QTimer, QEvent
 from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
@@ -26,22 +25,13 @@ path.append("/home/marksa/git/Python/Games/Wordle/input")
 from wordle_words import all_wordle_words as all_words
 
 MIN_WORD_LENGTH = 5
-MAX_WORD_LENGTH = 9
+MAX_WORD_LENGTH = 13
 DEFAULT_NUM_ROWS = 6
 
-class WdFontSize(IntEnum):
-    Xsmall  = 12
-    Small   = 16
-    SmMed   = 20
-    Medium  = 24
-    MedLarg = 28
-    Large   = 32
-    Xlarge  = 36
-
-
-SMALL_FONT  = f"font-size: {WdFontSize.Small}pt;"
-MEDIUM_FONT = f"font-size: {WdFontSize.Medium}pt;"
-XLARGE_FONT = f"font-size: {WdFontSize.Xlarge}pt;"
+MEDIUM_FONT_SIZE = 24
+SMALL_FONT  = "font-size: 16pt;"
+MEDIUM_FONT = f"font-size: {MEDIUM_FONT_SIZE}pt;"
+XLARGE_FONT = "font-size: 36pt;"
 FONT_BOLD   = "font-weight: bold;"
 INPUT_COLOR = "gray" # "rgb(241, 241, 241)"
 
@@ -53,12 +43,14 @@ INFO_TEXT = ("           How to Play Wordle:\n"
              "3) A letter in the correct position will shade green.\n\n"
              "4) A letter present in the secret word but in the wrong position in your guess will shade yellow.\n\n"
              "5) A letter NOT present in the secret word will shade grey.\n\n"
-             f"6) You have {DEFAULT_NUM_ROWS} attempts to find the secret word.\n\n"
-             "7) When you are ready, exit the game or start a new game and your game information will be saved to a JSON file.")
+             "6) Your entry will NOT be accepted if it is NOT a valid Wordle word.\n\n"
+             f"7) You have {DEFAULT_NUM_ROWS} attempts to find the secret word.\n\n"
+             "8) When you are ready, exit the game or start a new word and your current game information will be saved to a JSON file.")
 
-DEBUG_TARGET = "FELIS" # test words = MESSY, SHUSH, SILLY, AFFIX, SLIME, SLEET
-# "G/PUPPY" # test words = POLYP, APPLE, PAPER, PRIMP, PLUMP, UNDUE, UPPER, BUGGY
-WORDLE_DEBUG = True
+# DEBUG_TARGET = "FELIS" # test words = MESSY, SHUSH, SILLY, AFFIX, SLIME, SLEET
+# DEBUG_TARGET = "PUPPY" # test words = APPLE, PAPER, PLUMP, UNDUE, UPPER, GUPPY
+DEBUG_TARGET = "GUPPY" # test words = PUPPY, PAPER, PLUMP, UNDUE, UPPER, BUGGY
+WORDLE_DEBUG = False
 
 GUESS_BASIC_STYLESHEET  = f"{XLARGE_FONT}; color: blue;  background: white"
 GUESS_EXACT_STYLESHEET  = f"{XLARGE_FONT}; color: black; background: green; {FONT_BOLD}"
@@ -157,7 +149,7 @@ class WordleUI(QMainWindow):
         self.clock.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
         self.update_seconds = 1
         cfont = self.font()
-        cfont.setPointSize(WdFontSize.Medium)
+        cfont.setPointSize(MEDIUM_FONT_SIZE)
         self.clock.setFont(cfont)
         timer = QTimer(self)
         timer.timeout.connect(self.update_clock)
@@ -276,12 +268,12 @@ class WordleUI(QMainWindow):
         self.info_btn.setDefault(False)
         self.info_btn.clicked.connect(self.display_info)
 
-        self.newgame_btn = QPushButton("New Game?")
+        self.newgame_btn = QPushButton("New Word?")
         self.newgame_btn.installEventFilter(self)
         self.newgame_btn.setStyleSheet(f"{MEDIUM_FONT} color: green; background: orange")
         self.newgame_btn.setAutoDefault(False)
         self.newgame_btn.setDefault(False)
-        self.newgame_btn.clicked.connect(self.new_game_inquiry)
+        self.newgame_btn.clicked.connect(self.new_word_inquiry)
 
         self.exit_btn = QPushButton("Exit Game?")
         self.exit_btn.installEventFilter(self)
@@ -302,7 +294,7 @@ class WordleUI(QMainWindow):
             return
         self.lgr.info(f"Response changed to '{resp}'; Input box text = {self.input_box.text()}")
         self.clear_guess_row(self.active_row)
-        self.message_box.setText(f"row[{self.active_row}] is active. Text = '{resp}'")
+        self.message_box.setText(f"Row {self.active_row+1} is active. Text = '{resp}'")
         if resp:
             self.current_guess = resp
             current_box = 0
@@ -328,7 +320,7 @@ class WordleUI(QMainWindow):
                 self.failure()
         else:
             self.lgr.info(f"'{entry}' is NOT a valid word.")
-            self.message_box.setText(f"'{entry}' is NOT a valid word.")
+            self.message_box.setText(f"'{entry}' is NOT a valid word... :(")
 
     def clear_guess_row(self, row_num:int):
         for i in range(self.ge.word_length):
@@ -358,10 +350,12 @@ class WordleUI(QMainWindow):
 
     def victory(self):
         self.message_box.setText("Victory!")
+        self.lgr.info("Victory!")
         self.active = False
 
     def failure(self):
-        self.message_box.setText(f"Fail... :(  The hidden word was '{self.ge.current_target}'.")
+        self.message_box.setText(f"Fail... :(  The secret word was '{self.ge.current_target}'.")
+        self.lgr.info("Fail.")
         self.active = False
 
     def update_clock(self):
@@ -385,22 +379,22 @@ class WordleUI(QMainWindow):
 
     def exit_inquiry(self):
         """Confirm that the user wants to exit the current game."""
-        confirm_box, initiate_exit_button, continue_game_button = self.confirm_exit()
+        confirm_box, initiate_exit_button, continue_button = self.confirm_exit()
         confirm_box.exec()
-        if confirm_box.clickedButton() == initiate_exit_button:
-            self.lgr.info("Proceed to EXIT!")
+        if confirm_box.clickedButton() == continue_button:
+            self.lgr.info("Continuing the game.")
+        elif confirm_box.clickedButton() == initiate_exit_button:
+            self.lgr.info("Exiting.")
             self.close()
-        elif confirm_box.clickedButton() == continue_game_button:
-            self.lgr.info("Continue the game...")
 
-    def new_game_inquiry(self):
-        """Confirm that the user wants to start a NEW game."""
-        confirm_box, continue_game_button, new_game_button = self.confirm_new_game()
+    def new_word_inquiry(self):
+        """Confirm that the user wants a NEW secret word."""
+        confirm_box, continue_button, new_game_button = self.confirm_new_game()
         confirm_box.exec()
-        if confirm_box.clickedButton() == continue_game_button:
-            self.lgr.info("Continue the game...")
+        if confirm_box.clickedButton() == continue_button:
+            self.lgr.info("Continuing the game.")
         elif confirm_box.clickedButton() == new_game_button:
-            self.lgr.info("Exit and START a new game.")
+            self.lgr.info("Starting over with a new word.")
             self.ge.save_record()
             # new game
             self.reset()
@@ -411,7 +405,7 @@ class WordleUI(QMainWindow):
         infobox.setIcon(QMessageBox.Icon.Information)
         infobox.setStyleSheet(SMALL_FONT)
         infobox.setText(INFO_TEXT)
-        # infobox.setMinimumWidth(960) # DOES NOTHING... ?!
+        infobox.setMinimumWidth(720) # DOES NOTHING... ?!
         infobox.exec()
 
     @staticmethod
@@ -419,7 +413,7 @@ class WordleUI(QMainWindow):
         confirm_box = QMessageBox()
         confirm_box.setIcon(QMessageBox.Icon.Question)
         confirm_box.setStyleSheet("font-size: 16pt")
-        confirm_box.setText("    Are you SURE you want to EXIT the game?    ")
+        confirm_box.setText("Are you SURE you want to EXIT the game?")
         cancel_button = confirm_box.addButton("No! >> Continue the game...", QMessageBox.ButtonRole.ActionRole)
         cancel_button.setStyleSheet("background: chartreuse")
         proceed_button = confirm_box.addButton("Yes >> EXIT the game.", QMessageBox.ButtonRole.ActionRole)
@@ -432,10 +426,10 @@ class WordleUI(QMainWindow):
         confirm_box = QMessageBox()
         confirm_box.setIcon(QMessageBox.Icon.Question)
         confirm_box.setStyleSheet("font-size: 16pt")
-        confirm_box.setText("    Are you SURE you want to EXIT and start a NEW game?    ")
-        cancel_button = confirm_box.addButton("No! >> Continue the game...", QMessageBox.ButtonRole.ActionRole)
+        confirm_box.setText("Are you SURE you want to END this game and get a NEW word?")
+        cancel_button = confirm_box.addButton("No! >> Continue with this word...", QMessageBox.ButtonRole.ActionRole)
         cancel_button.setStyleSheet("background: chartreuse")
-        newgame_button = confirm_box.addButton("Yes >> START a NEW game!", QMessageBox.ButtonRole.ActionRole)
+        newgame_button = confirm_box.addButton("Yes >> Get a NEW word!", QMessageBox.ButtonRole.ActionRole)
         newgame_button.setStyleSheet("color: green; background: MediumVioletRed")
         confirm_box.setDefaultButton(cancel_button)
         return confirm_box, cancel_button, newgame_button
@@ -446,7 +440,6 @@ class WordleGameEngine:
     """The Wordle game internal data and procedures."""
     def __init__(self, p_lgr:logging.Logger, p_len:int=5):
         self.lgr = p_lgr
-        print(f"type(p_lgr) = {type(p_lgr)}")
         # TODO: check and use specified word length
         if p_len <= MAX_WORD_LENGTH:
             pass
