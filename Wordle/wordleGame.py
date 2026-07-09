@@ -47,9 +47,9 @@ INFO_TEXT = ("           How to Play Wordle:\n"
              f"7) You have {DEFAULT_NUM_ROWS} attempts to find the secret word.\n\n"
              "8) When you are ready, exit the game or start a new word and your current game information will be saved to a JSON file.")
 
-# DEBUG_TARGET = "FELIS" # test words = MESSY, SHUSH, SILLY, AFFIX, SLIME, SLEET
-# DEBUG_TARGET = "PUPPY" # test words = APPLE, PAPER, PLUMP, UNDUE, UPPER, GUPPY
-DEBUG_TARGET = "GUPPY" # test words = PUPPY, PAPER, PLUMP, UNDUE, UPPER, BUGGY
+DEBUG_TARGET = "FELIS" # test words = MESSY, LEAFY, SILLY, AFFIX, SLIME, FLESH
+# DEBUG_TARGET = "PUPPY" # test words = APPLE, PAPER, PLUMP, TAUPE, UPPER, GUPPY
+# DEBUG_TARGET = "GUPPY" # test words = PLUMP, PAPER, UPPER, UNDUE, PUPPY, BUGGY
 WORDLE_DEBUG = False
 
 GUESS_BASIC_STYLESHEET  = f"{XLARGE_FONT}; color: blue;  background: white"
@@ -98,6 +98,7 @@ class WordleUI(QMainWindow):
 
         self.ge = WordleGameEngine(self.lgr)
 
+        # TODO: implement hard mode
         main_layout = QVBoxLayout()
         main_layout.addLayout(self.create_top_section())
         main_layout.addLayout(self.create_guess_section())
@@ -250,7 +251,7 @@ class WordleUI(QMainWindow):
     # prevent input box from stealing focus when cursor over a button
     def eventFilter(self, obj, event):
         """Override eventFilter to catch QEvent.Type.Enter/Leave."""
-        if obj == self.info_btn or obj == self.newgame_btn or obj == self.exit_btn:
+        if obj == self.info_btn or obj == self.new_word_btn or obj == self.exit_btn:
             if event.type() == QEvent.Type.Enter:
                 self.lgr.debug("Button hover.")
                 self.button_hover = True
@@ -268,12 +269,13 @@ class WordleUI(QMainWindow):
         self.info_btn.setDefault(False)
         self.info_btn.clicked.connect(self.display_info)
 
-        self.newgame_btn = QPushButton("New Word?")
-        self.newgame_btn.installEventFilter(self)
-        self.newgame_btn.setStyleSheet(f"{MEDIUM_FONT} color: green; background: orange")
-        self.newgame_btn.setAutoDefault(False)
-        self.newgame_btn.setDefault(False)
-        self.newgame_btn.clicked.connect(self.new_word_inquiry)
+        # TODO: add keystroke combination to start a new word
+        self.new_word_btn = QPushButton("New Word?")
+        self.new_word_btn.installEventFilter(self)
+        self.new_word_btn.setStyleSheet(f"{MEDIUM_FONT} color: green; background: orange")
+        self.new_word_btn.setAutoDefault(False)
+        self.new_word_btn.setDefault(False)
+        self.new_word_btn.clicked.connect(self.new_word_inquiry)
 
         self.exit_btn = QPushButton("Exit Game?")
         self.exit_btn.installEventFilter(self)
@@ -284,7 +286,7 @@ class WordleUI(QMainWindow):
 
         qhb_layout = QHBoxLayout()
         qhb_layout.addWidget(self.info_btn)
-        qhb_layout.addWidget(self.newgame_btn)
+        qhb_layout.addWidget(self.new_word_btn)
         qhb_layout.addWidget(self.exit_btn)
         return qhb_layout
 
@@ -316,7 +318,7 @@ class WordleUI(QMainWindow):
             self.active_row += 1
             self.current_guess = ''
             self.input_box.clear()
-            if self.active and self.active_row >= DEFAULT_NUM_ROWS:
+            if self.active and self.active_row == DEFAULT_NUM_ROWS:
                 self.failure()
         else:
             self.lgr.info(f"'{entry}' is NOT a valid word.")
@@ -328,15 +330,35 @@ class WordleUI(QMainWindow):
 
     def mark_current_guess(self):
         # mark guess boxes
-        checked = ""
+        guess = [ _ for _ in range(len(self.current_guess)) ]
+        self.lgr.info(f"guess index list = {guess}.")
+        targ = self.ge.current_target
         for i in range(self.ge.word_length):
+            # EXACT match of letter position in guess and target
             if self.current_guess[i] == self.ge.current_target[i]:
                 self.guess_boxes[self.active_row][i].setStyleSheet(GUESS_EXACT_STYLESHEET)
-            elif self.ge.occurrence_match(i, self.current_guess, checked):
-                self.guess_boxes[self.active_row][i].setStyleSheet(GUESS_OCCUR_STYLESHEET)
-            else:
+                guess.remove(i)
+                idx = targ.index(self.ge.current_target[i])
+                targ = targ[:idx] + targ[idx+1:]
+                self.lgr.info(f"Exact[{i}] > guess = '{guess}'; targ = '{targ}'; current_target = '{self.ge.current_target}'")
+            # guessed letter is ABSENT from target
+            elif self.current_guess[i] not in self.ge.current_target:
                 self.guess_boxes[self.active_row][i].setStyleSheet(GUESS_ABSENT_STYLESHEET)
-            checked += self.current_guess[i]
+                guess.remove(i)
+                self.lgr.info(f"Absent[{i}] > guess = '{guess}' and targ = '{targ}'")
+            else:
+                self.lgr.info(f"No exact or absent at index[{i}]")
+        self.lgr.info(f"guess = '{guess}' and targ = '{targ}'")
+        # find target letters present in the guess but at a different position
+        for j in guess:
+            if self.current_guess[j] in targ:
+                self.guess_boxes[self.active_row][j].setStyleSheet(GUESS_OCCUR_STYLESHEET)
+                self.lgr.info(f"Index[{j}]: Mark occurrence of '{self.current_guess[j]}'")
+                idx = targ.index(self.current_guess[j])
+                targ = targ[:idx] + targ[idx+1:]
+                self.lgr.info(f"Occurrence[{j}] > guess = '{guess}' and targ = '{targ}'")
+            else:
+                self.guess_boxes[self.active_row][j].setStyleSheet(GUESS_ABSENT_STYLESHEET)
         # mark result boxes
         for j in range(len(self.result_boxes)):
             check_letter = self.result_boxes[j].text()
@@ -465,21 +487,6 @@ class WordleGameEngine:
             self.good_guesses.append(resp)
             return True
         self.bad_guesses.append(resp)
-        return False
-
-    def occurrence_match(self, idx:int, p_guess:str, p_checked:str) -> bool:
-        """Identify letters in the guess that are present in the target but not in the same box."""
-        lett = p_guess[idx]
-        level = logging.INFO if WORDLE_DEBUG else logging.DEBUG
-        self.lgr.log(level, f"lett = '{lett}'; response = '{p_guess}'; checked = '{p_checked}'.")
-        num_in_target = self.current_target.count(lett)
-        num_in_guess = p_guess.count(lett)
-        num_in_checked = p_checked.count(lett)
-        self.lgr.log(level, f"num_in_target = {num_in_target}; num_in_guess = {num_in_guess}; num_in_checked = {num_in_checked}.")
-        if ( num_in_target and
-                ( (num_in_target >= num_in_guess and num_in_target >= num_in_checked)
-               or (num_in_guess >= num_in_target > num_in_checked) ) ):
-            return True
         return False
 
     def save_record(self):
