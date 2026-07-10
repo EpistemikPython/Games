@@ -16,7 +16,7 @@ import subprocess
 import random
 from sys import argv, path
 from PySide6.QtCore import Qt, QTimer, QEvent
-from PySide6.QtGui import QShortcut, QKeySequence
+from PySide6.QtGui import QShortcut, QKeySequence, QAction
 from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                QPushButton, QMainWindow, QMessageBox, QLineEdit, QFrame)
 path.append("/home/marksa/git/Python/utils")
@@ -37,16 +37,17 @@ FONT_BOLD   = "font-weight: bold;"
 INPUT_COLOR = "gray" # "rgb(241, 241, 241)"
 
 ORDERED_LETTERS = "AEIOUYLNRSTCDHMPBFGKWJQVXZ"
+COPYRIGHT_TEXT = "Copyright (c) 2026 Mark Sattolo <epistemik@gmail.com>"
 INFO_TEXT = ("           How to Play Wordle:\n"
              "---------------------------------------------\n"
              f"1) Try to guess the secret {MIN_WORD_LENGTH}-letter word.\n\n"
-             f"2) Type a {MIN_WORD_LENGTH}-letter word and press ENTER to evaluate it."
-                  f" Your entry will ONLY be accepted if it is a VALID Wordle word.\n\n"
+             f"2) Type a {MIN_WORD_LENGTH}-letter word and press ENTER to evaluate it. "
+                  f" Your entry will be accepted if it is a VALID Wordle word.\n\n"
              "3) A letter in the correct position will shade GREEN.\n\n"
              "4) A letter present in the secret word but in the wrong position in your guess will shade YELLOW.\n\n"
              "5) A letter NOT present in the secret word will shade GREY.\n\n"
              f"6) You have {DEFAULT_NUM_ROWS} attempts to find the secret word.\n\n"
-             "7) If you eXit the game (Ctrl-Alt-X) or start a New word (Ctrl-N) your current game results will be saved to a file.")
+             "7) If you Quit the app (Ctrl-Q) or start a New word (Ctrl-N) your current game results will be saved to a file.")
 
 DEBUG_TARGET = "FELIS" # test words = MESSY, LEAFY, SILLY, AFFIX, SLIME, FLESH
 # DEBUG_TARGET = "PUPPY" # test words = APPLE, PAPER, PLUMP, TAUPE, UPPER, GUPPY
@@ -99,6 +100,8 @@ class WordleUI(QMainWindow):
 
         self.ge = WordleGameEngine(self.lgr)
 
+        self.create_menu()
+
         # TODO: implement hard mode
         main_layout = QVBoxLayout()
         main_layout.addLayout(self.create_top_section())
@@ -108,11 +111,11 @@ class WordleUI(QMainWindow):
         main_layout.addLayout(self.create_button_section())
 
         # key combination to get a new word
-        self.new_word_shortcut = QShortcut(QKeySequence("Ctrl+N"), self)
-        self.new_word_shortcut.activated.connect(self.reset)
+        # self.new_word_shortcut = QShortcut(QKeySequence("Ctrl+N"), self)
+        # self.new_word_shortcut.activated.connect(self.reset)
         # key combination to exit the game >> Ctrl-X does NOT work
-        self.exit_shortcut = QShortcut(QKeySequence("Ctrl+Alt+X"), self)
-        self.exit_shortcut.activated.connect(self.close)
+        # self.exit_shortcut = QShortcut(QKeySequence("Ctrl+Alt+X"), self)
+        # self.exit_shortcut.activated.connect(self.close)
 
         main_widget = QWidget()
         main_widget.setLayout(main_layout)
@@ -142,6 +145,50 @@ class WordleUI(QMainWindow):
     def close(self, /):
         self.ge.save_word_record()
         super().close()
+
+    def create_menu(self):
+        menu_bar = self.menuBar()
+        file_menu = menu_bar.addMenu("&Game")
+        info_menu = menu_bar.addMenu("&Info")
+
+        new_action = QAction("&New Word", self)
+        new_action.setShortcut("Ctrl+N")
+        new_action.setStatusTip("Start a new game with a new word")
+        new_action.triggered.connect(self.reset)
+
+        quit_action = QAction("&Quit", self)
+        quit_action.setShortcut("Ctrl+Q")
+        quit_action.setStatusTip("Quit the application")
+        quit_action.triggered.connect(self.close)
+
+        file_menu.addAction(new_action)
+        file_menu.addSeparator()
+        file_menu.addAction(quit_action)
+
+        # Optional: Add a simple submenu
+        # edit_submenu = edit_menu.addMenu("Find & Replace")
+
+        instr_action = QAction("&Instructions", self)
+        instr_action.setShortcut("Ctrl+I")
+        instr_action.setStatusTip("How to play Wordle")
+        instr_action.triggered.connect(self.instructions)
+
+        copyrite_action = QAction("&Copyright", self)
+        copyrite_action.setShortcut("Ctrl+R")
+        copyrite_action.setStatusTip("Copyright notice")
+        copyrite_action.triggered.connect(self.copyrite)
+
+        info_menu.addAction(instr_action)
+        info_menu.addAction(copyrite_action)
+
+        # Add a status bar to see status tips
+        self.statusBar()
+
+    def instructions(self):
+        QMessageBox.information(self, "Instructions", f"{INFO_TEXT}")
+
+    def copyrite(self):
+        QMessageBox.information(self, "Copyright", f"{COPYRIGHT_TEXT}")
 
     def create_top_section(self):
         """The input and clock section of the UI."""
@@ -405,7 +452,7 @@ class WordleUI(QMainWindow):
             self.input_box.setFocus()
 
     def exit_inquiry(self):
-        """Confirm that the user wants to exit the current game."""
+        """Confirm that the user wants to exit the app."""
         confirm_box, initiate_exit_button, continue_button = self.confirm_exit()
         confirm_box.exec()
         if confirm_box.clickedButton() == continue_button:
@@ -438,10 +485,10 @@ class WordleUI(QMainWindow):
         confirm_box = QMessageBox()
         confirm_box.setIcon(QMessageBox.Icon.Question)
         confirm_box.setStyleSheet("font-size: 16pt")
-        confirm_box.setText("Are you SURE you want to EXIT the game?")
-        cancel_button = confirm_box.addButton("No! >> Continue the game...", QMessageBox.ButtonRole.ActionRole)
+        confirm_box.setText("Are you SURE you want to QUIT the app?")
+        cancel_button = confirm_box.addButton("No! >> Continue this game...", QMessageBox.ButtonRole.ActionRole)
         cancel_button.setStyleSheet("background: chartreuse")
-        proceed_button = confirm_box.addButton("Yes >> EXIT the game.", QMessageBox.ButtonRole.ActionRole)
+        proceed_button = confirm_box.addButton("Yes >> QUIT the app.", QMessageBox.ButtonRole.ActionRole)
         proceed_button.setStyleSheet("color: yellow; background: purple")
         confirm_box.setDefaultButton(cancel_button)
         return confirm_box, proceed_button, cancel_button
@@ -470,6 +517,7 @@ class WordleGameEngine:
             pass
         self.lgr.info(f"Initialized Game Engine >> total number of words = {len(all_words)}")
         self.word_length = MIN_WORD_LENGTH
+        # TODO: check and use specified number of rows
         self.num_rows = DEFAULT_NUM_ROWS
         self.good_guesses = None
 
@@ -478,6 +526,7 @@ class WordleGameEngine:
         self.num_guesses = 0
         self.good_guesses = []
         self.bad_guesses = []
+        self.saved = False
         self.current_target = DEBUG_TARGET if WORDLE_DEBUG else all_words[random.randrange(0, len(all_words))]
         self.lgr.info(f"current target word = {self.current_target}")
 
@@ -494,9 +543,10 @@ class WordleGameEngine:
 
     def save_word_record(self):
         # save all important information from this game
-        if self.good_guesses:
+        if self.good_guesses and not self.saved:
             game_record = {"TARGET WORD":self.current_target, "GOOD GUESSES":self.good_guesses, "BAD GUESSES":self.bad_guesses}
             grfile = save_to_json(f"WordleGameRecord_{self.current_target}", game_record)
+            self.saved = True
             self.lgr.info(f"Saved game record as: {grfile}")
 # END class WordleGameEngine
 
