@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.11+"
 __created__ = "2026-07-05"
-__updated__ = "2026-07-09"
+__updated__ = "2026-07-10"
 
 import subprocess
 import random
@@ -39,14 +39,14 @@ INPUT_COLOR = "gray" # "rgb(241, 241, 241)"
 ORDERED_LETTERS = "AEIOUYLNRSTCDHMPBFGKWJQVXZ"
 INFO_TEXT = ("           How to Play Wordle:\n"
              "---------------------------------------------\n"
-             f"1) You are trying to guess the secret {MIN_WORD_LENGTH}-letter word.\n\n"
-             f"2) With the keyboard type a {MIN_WORD_LENGTH}-letter word and press ENTER to evaluate it.\n\n"
-             "3) A letter in the correct position will shade green.\n\n"
-             "4) A letter present in the secret word but in the wrong position in your guess will shade yellow.\n\n"
-             "5) A letter NOT present in the secret word will shade grey.\n\n"
-             "6) Your entry will NOT be accepted if it is NOT a valid Wordle word.\n\n"
-             f"7) You have {DEFAULT_NUM_ROWS} attempts to find the secret word.\n\n"
-             "8) You can eXit the game (Ctrl-Alt-X) or start a New word (Ctrl-N) and your current game information will be saved to a file.")
+             f"1) Try to guess the secret {MIN_WORD_LENGTH}-letter word.\n\n"
+             f"2) Type a {MIN_WORD_LENGTH}-letter word and press ENTER to evaluate it."
+                  f" Your entry will ONLY be accepted if it is a VALID Wordle word.\n\n"
+             "3) A letter in the correct position will shade GREEN.\n\n"
+             "4) A letter present in the secret word but in the wrong position in your guess will shade YELLOW.\n\n"
+             "5) A letter NOT present in the secret word will shade GREY.\n\n"
+             f"6) You have {DEFAULT_NUM_ROWS} attempts to find the secret word.\n\n"
+             "7) If you eXit the game (Ctrl-Alt-X) or start a New word (Ctrl-N) your current game results will be saved to a file.")
 
 DEBUG_TARGET = "FELIS" # test words = MESSY, LEAFY, SILLY, AFFIX, SLIME, FLESH
 # DEBUG_TARGET = "PUPPY" # test words = APPLE, PAPER, PLUMP, TAUPE, UPPER, GUPPY
@@ -122,6 +122,7 @@ class WordleUI(QMainWindow):
 
     def reset(self):
         """Reset all the items needed to start a new game."""
+        self.ge.save_word_record()
         self.lgr.info("Starting a NEW Game!")
         self.ge.start()
         self.active = True
@@ -139,7 +140,7 @@ class WordleUI(QMainWindow):
         self.lock_count = 0
 
     def close(self, /):
-        self.ge.save_record()
+        self.ge.save_word_record()
         super().close()
 
     def create_top_section(self):
@@ -196,27 +197,24 @@ class WordleUI(QMainWindow):
         qvb_layout = QVBoxLayout()
         row_len = self.ge.word_length
         num_rows = self.ge.num_rows
-        self.guess_boxes = [[self.create_guess_box(f"{j}-{i}") for i in range(row_len)] for j in range(num_rows)]
-        for j in range(num_rows):
-            for k in range(row_len):
-                self.lgr.debug(self.guess_boxes[j][k].text())
+        self.guess_boxes = [[self.create_guess_box() for _ in range(row_len)] for _ in range(num_rows)]
 
         layout_rows = []
-        for k in range(num_rows):
-            self.lgr.debug(f"Setting guess row #{k}")
+        for j in range(num_rows):
+            self.lgr.debug(f"Setting guess row #{j}")
             layout_rows.append(QHBoxLayout())
             left_spacer = QLabel()
-            layout_rows[k].addWidget(left_spacer)
-            layout_rows[k].setStretchFactor(left_spacer, 2)
-            for l in range(row_len):
-                self.lgr.debug(f"Setting guess box #{k}-{l}")
-                self.guess_boxes[k][l].setText('')
-                layout_rows[k].addWidget(self.guess_boxes[k][l])
-                layout_rows[k].setStretchFactor(self.guess_boxes[k][l], 1)
+            layout_rows[j].addWidget(left_spacer)
+            layout_rows[j].setStretchFactor(left_spacer, 2)
+            for k in range(row_len):
+                self.lgr.debug(f"Setting guess box #{j}-{k}")
+                self.guess_boxes[j][k].setText('')
+                layout_rows[j].addWidget(self.guess_boxes[j][k])
+                layout_rows[j].setStretchFactor(self.guess_boxes[j][k], 1)
             right_spacer = QLabel()
-            layout_rows[k].addWidget(right_spacer)
-            layout_rows[k].setStretchFactor(right_spacer, 2)
-            qvb_layout.addItem(layout_rows[k])
+            layout_rows[j].addWidget(right_spacer)
+            layout_rows[j].setStretchFactor(right_spacer, 2)
+            qvb_layout.addItem(layout_rows[j])
         return qvb_layout
 
     def reset_guesses(self):
@@ -237,7 +235,7 @@ class WordleUI(QMainWindow):
         self.result_boxes = []
         for i in range(len(ORDERED_LETTERS)):
             self.result_boxes.append(self.create_result_box(ORDERED_LETTERS[i]))
-        self.lgr.info(f"Have {len(self.result_boxes)} result boxes.")
+        self.lgr.debug(f"Have {len(self.result_boxes)} result boxes.")
 
         self.vowel_row = QHBoxLayout()
         for j in range(6):
@@ -277,7 +275,6 @@ class WordleUI(QMainWindow):
         self.info_btn.setDefault(False)
         self.info_btn.clicked.connect(self.display_info)
 
-        # TODO: add keystroke combination to start a new word
         self.new_word_btn = QPushButton("New Word?")
         self.new_word_btn.installEventFilter(self)
         self.new_word_btn.setStyleSheet(f"{MEDIUM_FONT} color: green; background: orange")
@@ -338,33 +335,33 @@ class WordleUI(QMainWindow):
 
     def mark_current_guess(self):
         # mark guess boxes
-        guess = [ _ for _ in range(len(self.current_guess)) ]
-        self.lgr.info(f"guess index list = {guess}.")
+        guess_idx = [ _ for _ in range(len(self.current_guess)) ]
+        self.lgr.info(f"guess index list = {guess_idx}.")
         targ = self.ge.current_target
         for i in range(self.ge.word_length):
             # EXACT match of letter position in guess and target
             if self.current_guess[i] == self.ge.current_target[i]:
                 self.guess_boxes[self.active_row][i].setStyleSheet(GUESS_EXACT_STYLESHEET)
-                guess.remove(i)
+                guess_idx.remove(i)
                 idx = targ.index(self.ge.current_target[i])
                 targ = targ[:idx] + targ[idx+1:]
-                self.lgr.info(f"Exact[{i}] > guess = '{guess}'; targ = '{targ}'; current_target = '{self.ge.current_target}'")
+                self.lgr.info(f"Exact[{i}] > guess = '{guess_idx}'; targ = '{targ}'; current_target = '{self.ge.current_target}'")
             # guessed letter is ABSENT from target
             elif self.current_guess[i] not in self.ge.current_target:
                 self.guess_boxes[self.active_row][i].setStyleSheet(GUESS_ABSENT_STYLESHEET)
-                guess.remove(i)
-                self.lgr.info(f"Absent[{i}] > guess = '{guess}' and targ = '{targ}'")
+                guess_idx.remove(i)
+                self.lgr.info(f"Absent[{i}] > guess = '{guess_idx}' and targ = '{targ}'")
             else:
                 self.lgr.info(f"No exact or absent at index[{i}]")
-        self.lgr.info(f"guess = '{guess}' and targ = '{targ}'")
+        self.lgr.info(f"guess = '{guess_idx}' and targ = '{targ}'")
         # find target letters present in the guess but at a different position
-        for j in guess:
+        for j in guess_idx:
             if self.current_guess[j] in targ:
                 self.guess_boxes[self.active_row][j].setStyleSheet(GUESS_OCCUR_STYLESHEET)
                 self.lgr.info(f"Index[{j}]: Mark occurrence of '{self.current_guess[j]}'")
                 idx = targ.index(self.current_guess[j])
                 targ = targ[:idx] + targ[idx+1:]
-                self.lgr.info(f"Occurrence[{j}] > guess = '{guess}' and targ = '{targ}'")
+                self.lgr.info(f"Occurrence[{j}] > guess = '{guess_idx}' and targ = '{targ}'")
             else:
                 self.guess_boxes[self.active_row][j].setStyleSheet(GUESS_ABSENT_STYLESHEET)
         # mark result boxes
@@ -425,8 +422,6 @@ class WordleUI(QMainWindow):
             self.lgr.info("Continuing the game.")
         elif confirm_box.clickedButton() == new_game_button:
             self.lgr.info("Starting over with a new word.")
-            self.ge.save_record()
-            # new game
             self.reset()
 
     @staticmethod
@@ -476,6 +471,7 @@ class WordleGameEngine:
         self.lgr.info(f"Initialized Game Engine >> total number of words = {len(all_words)}")
         self.word_length = MIN_WORD_LENGTH
         self.num_rows = DEFAULT_NUM_ROWS
+        self.good_guesses = None
 
     def start(self):
         self.previous_guess = ""
@@ -484,10 +480,9 @@ class WordleGameEngine:
         self.bad_guesses = []
         self.current_target = DEBUG_TARGET if WORDLE_DEBUG else all_words[random.randrange(0, len(all_words))]
         self.lgr.info(f"current target word = {self.current_target}")
-        self.saved = False
 
     def check_guess(self, resp:str) -> bool:
-        """Check for a good response."""
+        """Check for a valid response."""
         self.lgr.debug(f"check response '{resp}':")
         if resp == self.current_target or resp in all_words:
             self.previous_guess = resp
@@ -497,13 +492,12 @@ class WordleGameEngine:
         self.bad_guesses.append(resp)
         return False
 
-    def save_record(self):
+    def save_word_record(self):
         # save all important information from this game
-        if not self.saved and self.good_guesses:
+        if self.good_guesses:
             game_record = {"TARGET WORD":self.current_target, "GOOD GUESSES":self.good_guesses, "BAD GUESSES":self.bad_guesses}
             grfile = save_to_json(f"WordleGameRecord_{self.current_target}", game_record)
             self.lgr.info(f"Saved game record as: {grfile}")
-            self.saved = True
 # END class WordleGameEngine
 
 
