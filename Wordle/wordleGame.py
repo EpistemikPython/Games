@@ -18,7 +18,7 @@ from sys import argv, path
 from PySide6.QtCore import Qt, QTimer, QEvent
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-                               QPushButton, QMainWindow, QMessageBox, QLineEdit, QFrame)
+                               QPushButton, QMainWindow, QMessageBox, QLineEdit, QFrame, QComboBox)
 path.append("/home/marksa/git/Python/utils")
 from mhsUtils import *
 from mhsLogging import *
@@ -31,9 +31,12 @@ DEBUG_TARGET = "FELIS" # test words = MESSY, LEAFY, SILLY, AFFIX, SLIME, FLESH
 WORDLE_DEBUG = False
 
 ORDERED_LETTERS = "AEIOUYLNRSTCDHMPBFGKWJQVXZ"
-MIN_WORD_LENGTH = 5
+MIN_WORD_LENGTH = 4
+DEFAULT_WORD_LENGTH = 5
 MAX_WORD_LENGTH = 13
+MIN_NUM_ROWS = 3
 DEFAULT_NUM_ROWS = 6
+MAX_NUM_ROWS = 12
 
 MEDIUM_FONT_SIZE = 16
 SMALL_FONT  = "font-size: 12pt;"
@@ -78,30 +81,21 @@ def check_screen_locked(lgr:logging.Logger=None) -> bool:
 # noinspection PyAttributeOutsideInit
 class WordleUI(QMainWindow):
     """UI to play the Wordle game."""
-    def __init__(self):
+    def __init__(self, p_len:int=DEFAULT_WORD_LENGTH, p_rows:int=DEFAULT_NUM_ROWS):
         super().__init__()
         self.setWindowTitle("My Wordle Game")
         # pixels: dx from left, dy from top, width, height
         self.setGeometry(575, 140, 600, 750)
 
         self.lgr = log_control.get_logger()
-        self.lgr.log(DEFAULT_LOG_LEVEL, f"{self.windowTitle()} runtime = {get_current_time()}")
+        self.lgr.log(DEFAULT_LOG_LEVEL, f"{self.windowTitle()} runtime = {get_current_time()}"
+                                        f"\n\t\t\t\t >> p_len = {p_len}; p_rows = {p_rows}")
 
-        self.ge = WordleGameEngine(self.lgr)
+        self.ge = WordleGameEngine(self.lgr, p_len, p_rows)
 
         self.create_menu()
-
-        # TODO: implement hard mode
-        main_layout = QVBoxLayout()
-        main_layout.addLayout(self.create_top_section())
-        main_layout.addLayout(self.create_guess_section())
-        main_layout.addWidget(self.create_message_box())
-        main_layout.addLayout(self.create_result_section())
-        main_layout.addLayout(self.create_button_section())
-
-        main_widget = QWidget()
-        main_widget.setLayout(main_layout)
-        self.setCentralWidget(main_widget)
+        self.container_widget = None
+        self.main_layout = QVBoxLayout()
         self.reset()
         self.show()
 
@@ -112,17 +106,63 @@ class WordleUI(QMainWindow):
         self.ge.start()
         self.active = True
         self.current_guess = ''
-        self.input_box.clear()
-        self.reset_guesses()
-        self.reset_results()
         self.active_row = 0
         self.button_hover = False
-        self.input_box.setFocus()
         # game clock
-        self.clock.setText("00")
         self.run_secs = 0
         self.pause_secs = 0
         self.lock_count = 0
+        # layout
+
+        # self.top = self.create_top_section()
+        # self.msgbox = self.create_msg_box()
+        # self.results = self.create_result_section()
+        # self.buttons = self.create_button_section()
+
+        # 1. Remove the old container widget from the main layout
+        if self.container_widget:
+            self.main_layout.removeWidget(self.container_widget)
+            self.container_widget.deleteLater()
+
+        # 2. Build a brand new container widget
+        self.container_widget = QWidget()
+        self.dynamic_layout = QVBoxLayout(self.container_widget)
+
+        # 3. Add your new elements to the new layout
+        # self.dynamic_layout.addWidget(QLabel("Fresh Content"))
+        self.dynamic_layout.addLayout(self.create_top_section())
+        self.input_box.clear()
+        self.clock.setText("00")
+        self.dynamic_layout.addLayout(self.create_guess_section())
+        self.reset_guesses()
+        self.dynamic_layout.addWidget(self.create_msg_box())
+        self.dynamic_layout.addLayout(self.create_result_section())
+        self.reset_results()
+        self.dynamic_layout.addLayout(self.create_button_section())
+
+        # 4. Attach the container back to the main layout
+        self.main_layout.addWidget(self.container_widget)
+
+        main_widget = QWidget()
+        main_widget.setLayout(self.main_layout)
+        self.setCentralWidget(main_widget)
+        self.input_box.setFocus()
+
+        # main_layout = QVBoxLayout(self)
+        # self.top.setParent(main_layout)
+        # main_layout.addLayout(self.top)
+        # self.input_box.clear()
+        # self.clock.setText("00")
+        # main_layout.addLayout(self.create_guess_section())
+        # self.reset_guesses()
+        # main_layout.addWidget(self.msgbox)
+        # main_layout.addLayout(self.results)
+        # self.reset_results()
+        # main_layout.addLayout(self.buttons)
+        # main_widget = QWidget()
+        # main_widget.setLayout(main_layout)
+        # self.setCentralWidget(main_widget)
+        # self.input_box.setFocus()
 
     def close(self, /):
         self.ge.save_word_record()
@@ -132,6 +172,7 @@ class WordleUI(QMainWindow):
         menu_bar = self.menuBar()
         game_menu = menu_bar.addMenu("&Game")
         info_menu = menu_bar.addMenu("&Info")
+        settings_menu = menu_bar.addMenu("&Settings")
 
         hard_action = QAction("activate &Hard mode", self)
         hard_action.setShortcut("Ctrl+H")
@@ -159,13 +200,26 @@ class WordleUI(QMainWindow):
         instr_action.setStatusTip("How to play Wordle")
         instr_action.triggered.connect(self.display_instructions)
 
-        copyrite_action = QAction("Copy&right", self)
-        copyrite_action.setShortcut("Ctrl+R")
-        copyrite_action.setStatusTip("Copyright notice")
+        copyrite_action = QAction("Cop&yright", self)
+        copyrite_action.setShortcut("Ctrl+Y")
+        copyrite_action.setStatusTip("display Copyright notice")
         copyrite_action.triggered.connect(self.copyrite)
 
         info_menu.addAction(instr_action)
         info_menu.addAction(copyrite_action)
+
+        wordlen_action = QAction("Set word &length", self)
+        wordlen_action.setShortcut("Ctrl+L")
+        wordlen_action.setStatusTip("Start a new word with a new LENGTH")
+        wordlen_action.triggered.connect(self.set_word_length)
+
+        numrows_action = QAction("Set number of &rows", self)
+        numrows_action.setShortcut("Ctrl+R")
+        numrows_action.setStatusTip("Start a new word with a new number of ROWS (attempts)")
+        numrows_action.triggered.connect(self.get_num_rows)
+
+        settings_menu.addAction(wordlen_action)
+        settings_menu.addAction(numrows_action)
 
         # Add a status bar to see status tips
         self.statusBar()
@@ -189,6 +243,20 @@ class WordleUI(QMainWindow):
         self.input_box.textEdited.connect(self.response_change)
         self.input_box.returnPressed.connect(self.process_response)
 
+        self.wordlen_combobox = QComboBox(self)
+        self.wordlen_combobox.setEditable(False)
+        self.wordlen_combobox.setCurrentIndex(self.ge.word_length+1)
+        self.wordlen_combobox.insertItems(0, [str(t) for t in range(MIN_WORD_LENGTH, MAX_WORD_LENGTH+1)])
+        self.wordlen_combobox.setFrame(True)
+        self.wordlen_combobox.activated.connect(self.set_word_length)
+
+        self.numrows_combobox = QComboBox(self)
+        self.numrows_combobox.setEditable(False)
+        self.numrows_combobox.setCurrentIndex(self.ge.num_rows+1)
+        self.numrows_combobox.insertItems(0, [str(t) for t in range(MIN_NUM_ROWS, MAX_NUM_ROWS+1)])
+        self.numrows_combobox.setFrame(True)
+        self.numrows_combobox.activated.connect(self.set_num_rows)
+
         self.clock = QLabel()
         self.clock.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
         self.update_seconds = 1
@@ -204,18 +272,42 @@ class WordleUI(QMainWindow):
         qhb_layout.setStretchFactor(self.input_box, 1)
         left_spacer = QLabel()
         qhb_layout.addWidget(left_spacer)
-        qhb_layout.setStretchFactor(left_spacer, 2 if WORDLE_DEBUG else 20)
+        qhb_layout.setStretchFactor(left_spacer, 2) # if WORDLE_DEBUG else 20)
+        qhb_layout.addWidget(QLabel("word length:"))
+        qhb_layout.addWidget(self.wordlen_combobox)
+        qhb_layout.setStretchFactor(self.wordlen_combobox, 2)
+        qhb_layout.addWidget(QLabel("number of rows:"))
+        qhb_layout.addWidget(self.numrows_combobox)
+        qhb_layout.setStretchFactor(self.numrows_combobox, 2)
+        right_spacer = QLabel()
+        qhb_layout.addWidget(right_spacer)
+        qhb_layout.setStretchFactor(right_spacer, 2)
         qhb_layout.addWidget(self.clock)
         qhb_layout.setStretchFactor(self.clock, 2)
         return qhb_layout
 
-    def create_message_box(self):
-        self.message_box = QLineEdit()
-        self.message_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.message_box.setFrame(True)
-        self.message_box.setReadOnly(True)
-        self.message_box.setStyleSheet(f"{SMALL_FONT} color:red")
-        return self.message_box
+    def get_word_length(self):
+        QMessageBox.information(self, "Set NEW word length", f"new word length?")
+
+    def set_word_length(self):
+        self.lgr.info(f"Setting length of words to {self.wordlen_combobox.currentText()}.")
+
+    def get_num_rows(self):
+        QMessageBox.information(self, "Get number of rows", f"get num rows")
+
+    def set_num_rows(self):
+        new_num_rows = int(self.numrows_combobox.currentText())
+        self.lgr.info(f"Setting number of rows to {new_num_rows}.")
+        self.ge.num_rows = new_num_rows
+        self.reset()
+
+    def create_msg_box(self):
+        self.msgbox = QLineEdit()
+        self.msgbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.msgbox.setFrame(True)
+        self.msgbox.setReadOnly(True)
+        self.msgbox.setStyleSheet(f"{SMALL_FONT} color:red")
+        return self.msgbox
 
     @staticmethod
     def create_guess_box(p_text:str=''):
@@ -328,7 +420,7 @@ class WordleUI(QMainWindow):
         qhb_layout.addWidget(self.new_word_btn)
         qhb_layout.addWidget(self.exit_btn)
         qvb_layout = QVBoxLayout()
-        qvb_layout.addWidget(QLabel("                                   "))
+        qvb_layout.addWidget(QLabel("\t\t\t\t"))
         qvb_layout.addLayout(qhb_layout)
         return qvb_layout
 
@@ -338,7 +430,7 @@ class WordleUI(QMainWindow):
             return
         self.lgr.info(f"Response changed to '{resp}'; Input box text = {self.input_box.text()}")
         self.clear_guess_row(self.active_row)
-        self.message_box.setText(f"Row {self.active_row+1} is active. Text = '{resp}'")
+        self.msgbox.setText(f"Row {self.active_row+1} is active. Text = '{resp}'")
         if resp:
             self.current_guess = resp
             current_box = 0
@@ -364,7 +456,7 @@ class WordleUI(QMainWindow):
                 self.failure()
         else:
             self.lgr.info(f"'{entry}' is NOT a valid word.")
-            self.message_box.setText(f"'{entry}' is NOT a valid word... :(")
+            self.msgbox.setText(f"'{entry}' is NOT a valid word... :(")
 
     def clear_guess_row(self, row_num:int):
         for i in range(self.ge.word_length):
@@ -413,12 +505,12 @@ class WordleUI(QMainWindow):
             self.victory()
 
     def victory(self):
-        self.message_box.setText("Victory!")
+        self.msgbox.setText("Victory!")
         self.lgr.info("Victory!")
         self.active = False
 
     def failure(self):
-        self.message_box.setText(f"Fail... :(  The secret word was '{self.ge.current_target}'.")
+        self.msgbox.setText(f"Fail... :(  The secret word was '{self.ge.current_target}'.")
         self.lgr.info("Fail.")
         self.active = False
 
@@ -499,17 +591,16 @@ class WordleUI(QMainWindow):
 # noinspection PyAttributeOutsideInit
 class WordleGameEngine:
     """The Wordle game internal data and procedures."""
-    def __init__(self, p_lgr:logging.Logger, p_len:int=5):
+    def __init__(self, p_lgr:logging.Logger, p_len:int=DEFAULT_WORD_LENGTH, p_rows:int=DEFAULT_NUM_ROWS):
         self.lgr = p_lgr
-        # TODO: check and use specified word length
-        if p_len <= MAX_WORD_LENGTH:
-            pass
-        self.lgr.info(f"Initialized Game Engine >> total number of words = {len(all_words)}")
-        self.word_length = MIN_WORD_LENGTH
-        # TODO: check and use specified number of rows
-        self.num_rows = DEFAULT_NUM_ROWS
-        self.instructions = ("           How to Play Wordle:\n"
-                        "---------------------------------------------\n"
+        # TODO: set different lengths and number of rows from main.py
+        if MIN_WORD_LENGTH <= p_len <= MAX_WORD_LENGTH:
+            self.word_length = p_len
+        if MIN_NUM_ROWS <= p_rows <= MAX_NUM_ROWS:
+            self.num_rows = p_rows
+        self.lgr.info(f"Word length = {self.word_length}; Number of rows = {self.num_rows}.")
+        self.instructions = ("\tHow to Play Wordle:\n"
+                        "---------------------------------------------------------------------------------\n"
                         f"1) Try to guess the secret {self.word_length}-letter word.\n\n"
                         f"2) Type a {self.word_length}-letter word and press ENTER to evaluate it. "
                         f" Your entry will be accepted if it is a VALID Wordle word.\n\n"
@@ -520,6 +611,7 @@ class WordleGameEngine:
                         f"7) You have {self.num_rows} attempts to find the secret word.\n\n"
                         "8) If you Quit the app (Ctrl-Q) or start a New word (Ctrl-N) your current game results will be saved to a file.")
         self.good_guesses = None
+        self.lgr.info(f"Initialized Game Engine >> total number of words = {len(all_words)}")
 
     def start(self):
         self.previous_guess = ""
@@ -554,16 +646,24 @@ class WordleGameEngine:
 log_control = MhsLogger(WordleUI.__name__, con_level = DEFAULT_LOG_LEVEL)
 
 if __name__ == "__main__":
-    if len(argv) > 1:
+    if len(argv) > 3:
         print(f"Usage: python3 {get_filename(argv[0])}\nLaunch the Wordle game.")
         log_control.debug("Usage instructions.")
         exit(0)
-    dialog = None
+    window = None
     app = None
     code = 0
     try:
         app = QApplication(argv)
-        dialog = WordleUI()
+        if len(argv) > 2:
+            window = WordleUI(int(argv[1]), int(argv[2]))
+            log_control.info(f"argv[1]: {argv[1]}, argv[2]: {argv[2]}")
+        elif len(argv) > 1:
+            window = WordleUI(int(argv[1]), 6)
+            log_control.info(f"argv[1]: {argv[1]}, p_rows = 6")
+        else:
+            window = WordleUI()
+            log_control.info("No arguments.")
         app.exec()
     except KeyboardInterrupt as mki:
         log_control.exception(mki)
@@ -575,8 +675,8 @@ if __name__ == "__main__":
         log_control.exception(mex)
         code = 66
     finally:
-        if dialog:
-            dialog.close()
+        if window:
+            window.close()
         if app:
             app.exit(code)
     exit(code)
