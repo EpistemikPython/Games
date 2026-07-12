@@ -23,7 +23,7 @@ path.append("/home/marksa/git/Python/utils")
 from mhsUtils import *
 from mhsLogging import *
 path.append("/home/marksa/git/Python/Games/Wordle/input")
-from all_wordle_words import all_sb_words as all_words
+from all_wordle_words import all_wdl_words as all_words
 
 DEBUG_TARGET = "FELIS" # test words = MESSY, LEAFY, SILLY, AFFIX, SLIME, FLESH
 # DEBUG_TARGET = "PUPPY" # test words = APPLE, PAPER, PLUMP, TAUPE, UPPER, GUPPY
@@ -164,8 +164,8 @@ class WordleUI(QMainWindow):
         instr_action.setShortcut("Ctrl+I")
         instr_action.setStatusTip("How to play Wordle")
         instr_action.triggered.connect(self.display_instructions)
-        copyrite_action = QAction("Cop&yright", self)
-        copyrite_action.setShortcut("Ctrl+Y")
+        copyrite_action = QAction("Copy&right", self)
+        copyrite_action.setShortcut("Ctrl+R")
         copyrite_action.setStatusTip("display Copyright notice")
         copyrite_action.triggered.connect(self.copyrite)
         info_menu.addAction(instr_action)
@@ -174,7 +174,7 @@ class WordleUI(QMainWindow):
         hard_action = QAction("activate &Hard mode", self)
         hard_action.setShortcut("Ctrl+H")
         hard_action.setStatusTip("Activate HARD mode")
-        hard_action.triggered.connect(self.hard_mode)
+        hard_action.triggered.connect(self.hard_mode_inquiry)
         settings_menu.addAction(hard_action)
 
         # to see status tips
@@ -242,17 +242,11 @@ class WordleUI(QMainWindow):
         qhb_layout.setStretchFactor(self.clock, 2)
         return qhb_layout
 
-    def get_word_length(self):
-        QMessageBox.information(self, "Get NEW word length", f"new word length?")
-
     def set_word_length(self):
         new_word_len = int(self.wordlen_combobox.currentText())
         self.lgr.info(f"Setting word length to {new_word_len}.")
         self.ge.word_length = new_word_len
         self.reset()
-
-    def get_num_rows(self):
-        QMessageBox.information(self, "Get number of rows", f"get num rows")
 
     def set_num_rows(self):
         new_num_rows = int(self.numrows_combobox.currentText())
@@ -266,6 +260,7 @@ class WordleUI(QMainWindow):
         self.msgbox.setFrame(True)
         self.msgbox.setReadOnly(True)
         self.msgbox.setStyleSheet(f"{SMALL_FONT} color:red")
+        self.msgbox_header = ""
         return self.msgbox
 
     @staticmethod
@@ -389,7 +384,7 @@ class WordleUI(QMainWindow):
             return
         self.lgr.info(f"Response changed to '{resp}'; Input box text = {self.input_box.text()}")
         self.clear_guess_row(self.active_row)
-        self.msgbox.setText(f"Row {self.active_row+1} is active. Text = '{resp}'")
+        self.msgbox.setText(f"{self.msgbox_header}Row {self.active_row+1} is active. Text = '{resp}'")
         if resp:
             self.current_guess = resp
             current_box = 0
@@ -405,7 +400,7 @@ class WordleUI(QMainWindow):
         self.lgr.info(f">> Process response '{entry}'.")
         if not entry:
             return
-        if self.ge.check_guess(entry):
+        if self.ge.check_guess(entry, self.active_row):
             self.lgr.info(f"'{entry}' is a valid word.")
             self.mark_current_guess()
             self.active_row += 1
@@ -414,14 +409,17 @@ class WordleUI(QMainWindow):
             if self.active and self.active_row == self.ge.num_rows:
                 self.failure()
         else:
-            self.lgr.info(f"'{entry}' is NOT a valid word.")
-            self.msgbox.setText(f"'{entry}' is NOT a valid word... :(")
+            mesg = self.ge.info_mesg if self.ge.info_mesg else f"'{entry}' is NOT a valid word... :("
+            self.lgr.info(mesg)
+            self.msgbox.setText(self.msgbox_header + mesg)
+        self.ge.info_mesg = ""
 
     def clear_guess_row(self, row_num:int):
         for i in range(self.ge.word_length):
             self.guess_boxes[row_num][i].setText('')
 
     def mark_current_guess(self):
+        """Mark the current guess boxes as green, yellow or grey & the result letters as green or red."""
         # mark guess boxes
         guess_idx = [ _ for _ in range(len(self.current_guess)) ]
         self.lgr.info(f"guess index list = {guess_idx}.")
@@ -431,6 +429,10 @@ class WordleUI(QMainWindow):
             if self.current_guess[i] == self.ge.current_target[i]:
                 self.guess_boxes[self.active_row][i].setStyleSheet(GUESS_EXACT_STYLESHEET)
                 guess_idx.remove(i)
+                if i not in self.ge.green_index:
+                    self.ge.green_index.append(i)
+                    self.ge.green_index.sort()
+                    self.lgr.info(f"self.ge.green_index = {self.ge.green_index}")
                 idx = targ.index(self.ge.current_target[i])
                 targ = targ[:idx] + targ[idx+1:]
                 self.lgr.info(f"Exact[{i}] > guess = '{guess_idx}'; targ = '{targ}'; current_target = '{self.ge.current_target}'")
@@ -447,6 +449,9 @@ class WordleUI(QMainWindow):
             if self.current_guess[j] in targ:
                 self.guess_boxes[self.active_row][j].setStyleSheet(GUESS_OCCUR_STYLESHEET)
                 self.lgr.info(f"Index[{j}]: Mark occurrence of '{self.current_guess[j]}'")
+                if self.current_guess[j] not in self.ge.yellow_list:
+                    self.ge.yellow_list.append(self.current_guess[j])
+                    self.lgr.info(f"self.ge.yellow_list = {self.ge.yellow_list}")
                 idx = targ.index(self.current_guess[j])
                 targ = targ[:idx] + targ[idx+1:]
                 self.lgr.info(f"Occurrence[{j}] > guess = '{guess_idx}' and targ = '{targ}'")
@@ -492,27 +497,41 @@ class WordleUI(QMainWindow):
             self.lgr.debug("set focus to input box")
             self.input_box.setFocus()
 
+    def hard_mode_inquiry(self):
+        """Ask if the user wants to set or unset hard mode."""
+        confirm_box, set_button, unset_button = self.confirm_hard_mode()
+        confirm_box.exec()
+        if confirm_box.clickedButton() == set_button:
+            self.ge.hard_mode = True
+            self.msgbox_header = "HARD MODE: "
+            self.lgr.info("SET hard mode.")
+        elif confirm_box.clickedButton() == unset_button:
+            self.ge.hard_mode = False
+            self.msgbox_header = ""
+            self.lgr.info("UNSET hard mode.")
+
     def exit_inquiry(self):
-        """Confirm that the user wants to exit the app."""
-        confirm_box, initiate_exit_button, continue_button = self.confirm_exit()
+        """Ask if the user wants to exit the app."""
+        confirm_box, continue_button, quit_button = self.confirm_exit()
         confirm_box.exec()
         if confirm_box.clickedButton() == continue_button:
             self.lgr.info("Continuing the game.")
-        elif confirm_box.clickedButton() == initiate_exit_button:
+        elif confirm_box.clickedButton() == quit_button:
             self.lgr.info("Quit the app.")
             self.close()
 
     def new_word_inquiry(self):
-        """Confirm that the user wants a NEW secret word."""
-        confirm_box, continue_button, new_game_button = self.confirm_new_word()
+        """Ask if the user wants a NEW secret word."""
+        confirm_box, continue_button, new_word_button = self.confirm_new_word()
         confirm_box.exec()
         if confirm_box.clickedButton() == continue_button:
             self.lgr.info("Continuing this game.")
-        elif confirm_box.clickedButton() == new_game_button:
+        elif confirm_box.clickedButton() == new_word_button:
             self.lgr.info("Starting over with a new word.")
             self.reset()
 
     def display_instructions(self):
+        """Display 'How to play Wordle'."""
         infobox = QMessageBox()
         infobox.setIcon(QMessageBox.Icon.Information)
         infobox.setStyleSheet(SMALL_FONT)
@@ -521,30 +540,46 @@ class WordleUI(QMainWindow):
         infobox.exec()
 
     @staticmethod
+    def confirm_hard_mode():
+        """Confirm that the user wants to exit the app."""
+        confirm_box = QMessageBox()
+        confirm_box.setIcon(QMessageBox.Icon.Question)
+        confirm_box.setStyleSheet(MEDIUM_FONT)
+        # confirm_box.setText("Are you SURE you want to QUIT the app?")
+        set_button = confirm_box.addButton("Set hard mode.", QMessageBox.ButtonRole.ActionRole)
+        set_button.setStyleSheet("background: violet")
+        unset_button = confirm_box.addButton("Unset hard mode.", QMessageBox.ButtonRole.ActionRole)
+        unset_button.setStyleSheet("background: yellow")
+        confirm_box.setDefaultButton(unset_button)
+        return confirm_box, set_button, unset_button
+
+    @staticmethod
     def confirm_exit():
+        """Confirm that the user wants to exit the app."""
         confirm_box = QMessageBox()
         confirm_box.setIcon(QMessageBox.Icon.Question)
         confirm_box.setStyleSheet(MEDIUM_FONT)
         confirm_box.setText("Are you SURE you want to QUIT the app?")
-        cancel_button = confirm_box.addButton("No! >> Continue this game...", QMessageBox.ButtonRole.ActionRole)
-        cancel_button.setStyleSheet("background: chartreuse")
-        proceed_button = confirm_box.addButton("Yes >> QUIT the app.", QMessageBox.ButtonRole.ActionRole)
-        proceed_button.setStyleSheet("color: yellow; background: purple")
-        confirm_box.setDefaultButton(cancel_button)
-        return confirm_box, proceed_button, cancel_button
+        continue_button = confirm_box.addButton("No! >> Continue this game...", QMessageBox.ButtonRole.ActionRole)
+        continue_button.setStyleSheet("background: chartreuse")
+        quit_button = confirm_box.addButton("Yes >> QUIT the app.", QMessageBox.ButtonRole.ActionRole)
+        quit_button.setStyleSheet("color: yellow; background: purple")
+        confirm_box.setDefaultButton(continue_button)
+        return confirm_box, continue_button, quit_button
 
     @staticmethod
     def confirm_new_word():
+        """Confirm that the user wants a NEW secret word."""
         confirm_box = QMessageBox()
         confirm_box.setIcon(QMessageBox.Icon.Question)
         confirm_box.setStyleSheet(MEDIUM_FONT)
         confirm_box.setText("Are you SURE you want to END this game and get a NEW word?")
-        cancel_button = confirm_box.addButton("No! >> Continue with this word...", QMessageBox.ButtonRole.ActionRole)
-        cancel_button.setStyleSheet("background: chartreuse")
-        newgame_button = confirm_box.addButton("Yes >> Get a NEW word!", QMessageBox.ButtonRole.ActionRole)
-        newgame_button.setStyleSheet("color: green; background: MediumVioletRed")
-        confirm_box.setDefaultButton(cancel_button)
-        return confirm_box, cancel_button, newgame_button
+        continue_button = confirm_box.addButton("No! >> Continue with this word...", QMessageBox.ButtonRole.ActionRole)
+        continue_button.setStyleSheet("background: chartreuse")
+        new_word_button = confirm_box.addButton("Yes >> Get a NEW word!", QMessageBox.ButtonRole.ActionRole)
+        new_word_button.setStyleSheet("color: green; background: MediumVioletRed")
+        confirm_box.setDefaultButton(continue_button)
+        return confirm_box, continue_button, new_word_button
 # END class WordleUI
 
 # noinspection PyAttributeOutsideInit
@@ -557,7 +592,6 @@ class WordleGameEngine:
             self.word_length = p_len
         if MIN_NUM_ROWS <= p_rows <= MAX_NUM_ROWS:
             self.num_rows = p_rows
-        self.lgr.info(f"Word length = {self.word_length}; Number of rows = {self.num_rows}.")
         self.instructions = ("\tHow to Play Wordle:\n"
                         "---------------------------------------------------------------------------------\n"
                         f"1) Try to guess the secret {self.word_length}-letter word.\n\n"
@@ -570,34 +604,61 @@ class WordleGameEngine:
                         f"7) You have {self.num_rows} attempts to find the secret word.\n\n"
                         "8) If you Quit the app (Ctrl-Q) or start a New word (Ctrl-N) your current game results will be saved to a file.")
         self.good_guesses = None
-        self.lgr.info(f"Initialized Game Engine >> total number of words = {len(all_words)}")
+        self.lgr.info(f"Initialized Game Engine >> Word length = {self.word_length}; Number of rows = {self.num_rows}.")
 
     def start(self):
         self.previous_guess = ""
         self.num_guesses = 0
         self.good_guesses = []
         self.bad_guesses = []
+        self.green_index = []
+        self.yellow_list = []
+        self.info_mesg = ""
+        self.hard_mode = False
         self.saved = False
         self.get_current_words()
         self.current_target = DEBUG_TARGET if WORDLE_DEBUG else self.current_words[random.randrange(0, len(self.current_words))]
-        self.lgr.info(f"current target word = {self.current_target}")
+        self.lgr.info(f"current target word = {self.current_target}; total number of words = {len(self.current_words)}")
 
     def get_current_words(self):
+        """Get all words that match the current word length."""
         self.current_words = []
         for wd in all_words:
             if len(wd) == self.word_length:
                 self.current_words.append(wd)
 
-    def check_guess(self, resp:str) -> bool:
+    def check_guess(self, resp:str, p_current_row:int) -> bool:
         """Check for a valid response."""
-        self.lgr.debug(f"check response '{resp}':")
-        if resp == self.current_target or resp in all_words:
+        self.lgr.debug(f"check response '{resp}'.")
+        if resp == self.current_target:
+            result = True
+        elif resp not in self.current_words:
+            result = False
+        elif p_current_row > 0 and self.hard_mode:
+            result = self.checkguess_hardmode(resp)
+        else:
+            result = True
+        if result:
             self.previous_guess = resp
             self.num_guesses += 1
             self.good_guesses.append(resp)
             return True
-        self.bad_guesses.append(resp)
-        return False
+        else:
+            self.bad_guesses.append(resp)
+            return False
+
+    def checkguess_hardmode(self, resp:str) -> bool:
+        """Make sure that previous green and yellow responses are carried over."""
+        self.lgr.debug(f"check response '{resp}' in HARD MODE.")
+        for gi in self.green_index:
+            if resp[gi] != self.current_target[gi]:
+                self.info_mesg = f"Missing green letter at position {gi+1} in '{resp}'."
+                return False
+        for yl in self.yellow_list:
+            if yl not in resp:
+                self.info_mesg = f"Missing yellow letter '{yl}'."
+                return False
+        return True
 
     def save_word_record(self):
         # save all important information from this game
