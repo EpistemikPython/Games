@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.11+"
 __created__ = "2026-07-05"
-__updated__ = "2026-07-11"
+__updated__ = "2026-07-12"
 
 import subprocess
 import random
@@ -85,11 +85,11 @@ class WordleUI(QMainWindow):
         super().__init__()
         self.setWindowTitle("My Wordle Game")
         # pixels: dx from left, dy from top, width, height
-        self.setGeometry(575, 140, 600, 750)
+        self.setGeometry(600, 100, 640, 760)
 
         self.lgr = log_control.get_logger()
-        self.lgr.log(DEFAULT_LOG_LEVEL, f"{self.windowTitle()} runtime = {get_current_time()}"
-                                        f"\n\t\t\t\t >> p_len = {p_len}; p_rows = {p_rows}")
+        self.lgr.log(DEFAULT_LOG_LEVEL, f"{self.windowTitle()} start time = {get_current_time()}"
+                                        f"\n\t\t\t\t\t\t >> p_len = {p_len}; p_rows = {p_rows}")
 
         self.ge = WordleGameEngine(self.lgr, p_len, p_rows)
 
@@ -136,6 +136,7 @@ class WordleUI(QMainWindow):
         main_widget = QWidget()
         main_widget.setLayout(self.main_layout)
         self.setCentralWidget(main_widget)
+        self.msgbox.setText(">> Regular Mode")
         self.input_box.setFocus()
 
     def close(self, /):
@@ -179,10 +180,6 @@ class WordleUI(QMainWindow):
 
         # to see status tips
         self.statusBar()
-
-    def hard_mode(self):
-        # TODO: get confirmation for hard mode
-        QMessageBox.information(self, "Hard mode", f"activate hard mode")
 
     def copyrite(self):
         QMessageBox.information(self, "Copyright", "Copyright (c) 2026 Mark Sattolo <epistemik@gmail.com>")
@@ -259,7 +256,7 @@ class WordleUI(QMainWindow):
         self.msgbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.msgbox.setFrame(True)
         self.msgbox.setReadOnly(True)
-        self.msgbox.setStyleSheet(f"{SMALL_FONT} color:red")
+        self.msgbox.setStyleSheet(f"{MEDIUM_FONT} color:red")
         self.msgbox_header = ""
         return self.msgbox
 
@@ -470,12 +467,12 @@ class WordleUI(QMainWindow):
 
     def victory(self):
         self.msgbox.setText("Victory!")
-        self.lgr.info("Victory!")
+        self.lgr.info("Victory!\n\n\n======================================\n")
         self.active = False
 
     def failure(self):
         self.msgbox.setText(f"Fail... :(  The secret word was '{self.ge.current_target}'.")
-        self.lgr.info("Fail.")
+        self.lgr.info("Fail.\n\n\n======================================\n")
         self.active = False
 
     def update_clock(self):
@@ -503,11 +500,13 @@ class WordleUI(QMainWindow):
         confirm_box.exec()
         if confirm_box.clickedButton() == set_button:
             self.ge.hard_mode = True
-            self.msgbox_header = "HARD MODE: "
+            self.msgbox_header = "HARD MODE:  "
+            self.msgbox.setText(">> Hard Mode")
             self.lgr.info("SET hard mode.")
         elif confirm_box.clickedButton() == unset_button:
             self.ge.hard_mode = False
             self.msgbox_header = ""
+            self.msgbox.setText(">> Regular Mode")
             self.lgr.info("UNSET hard mode.")
 
     def exit_inquiry(self):
@@ -545,7 +544,6 @@ class WordleUI(QMainWindow):
         confirm_box = QMessageBox()
         confirm_box.setIcon(QMessageBox.Icon.Question)
         confirm_box.setStyleSheet(MEDIUM_FONT)
-        # confirm_box.setText("Are you SURE you want to QUIT the app?")
         set_button = confirm_box.addButton("Set hard mode.", QMessageBox.ButtonRole.ActionRole)
         set_button.setStyleSheet("background: violet")
         unset_button = confirm_box.addButton("Unset hard mode.", QMessageBox.ButtonRole.ActionRole)
@@ -673,8 +671,9 @@ class WordleGameEngine:
 log_control = MhsLogger(WordleUI.__name__, con_level = DEFAULT_LOG_LEVEL)
 
 if __name__ == "__main__":
+    usage_text = f"Usage: python3 {get_filename(argv[0])} [$word_length] [$num_rows]\n"
     if len(argv) > 3:
-        print(f"Usage: python3 {get_filename(argv[0])}\nLaunch the Wordle game.")
+        print(usage_text)
         log_control.debug("Usage instructions.")
         exit(0)
     window = None
@@ -683,14 +682,22 @@ if __name__ == "__main__":
     try:
         app = QApplication(argv)
         if len(argv) > 2:
+            if not argv[1].isdigit() or not argv[2].isdigit():
+                print(usage_text)
+                log_control.debug("Invalid arguments.")
+                raise Exception("Invalid arguments.")
             window = WordleUI(int(argv[1]), int(argv[2]))
-            log_control.info(f"argv[1]: {argv[1]}, argv[2]: {argv[2]}")
+            print(f"argv[1]: {argv[1]}, argv[2]: {argv[2]}")
         elif len(argv) > 1:
-            window = WordleUI(int(argv[1]), 6)
-            log_control.info(f"argv[1]: {argv[1]}, p_rows = 6")
+            if not argv[1].isdigit():
+                print(usage_text)
+                log_control.debug("Invalid arguments.")
+                raise Exception("Invalid arguments.")
+            window = WordleUI(int(argv[1]))
+            print(f"argv[1]: {argv[1]}, p_rows = {DEFAULT_NUM_ROWS}")
         else:
             window = WordleUI()
-            log_control.info("No arguments.")
+            print("No arguments.")
         app.exec()
     except KeyboardInterrupt as mki:
         log_control.exception(mki)
