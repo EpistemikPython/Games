@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.11+"
 __created__ = "2026-07-05"
-__updated__ = "2026-07-14"
+__updated__ = "2026-07-15"
 
 import subprocess
 import random
@@ -556,9 +556,9 @@ class WordleUI(QMainWindow):
         confirm_box.setStyleSheet(MEDIUM_FONT)
         confirm_box.setText("Are you SURE you want to END this game and get a NEW word?")
         continue_button = confirm_box.addButton("No! >> Continue with this word...", QMessageBox.ButtonRole.ActionRole)
-        continue_button.setStyleSheet("background: chartreuse")
+        continue_button.setStyleSheet("QPushButton:focus {background: chartreuse}")
         new_word_button = confirm_box.addButton("Yes >> Get a NEW word!", QMessageBox.ButtonRole.ActionRole)
-        new_word_button.setStyleSheet("color: springgreen; background: MediumVioletRed")
+        new_word_button.setStyleSheet("QPushButton:focus {background: MediumVioletRed}")
         confirm_box.setDefaultButton(continue_button if self.active else new_word_button)
         return confirm_box, continue_button, new_word_button
 
@@ -569,9 +569,9 @@ class WordleUI(QMainWindow):
         confirm_box.setStyleSheet(MEDIUM_FONT)
         confirm_box.setText("In 'strict' mode any previous green or yellow letter guesses MUST be used in subsequent guesses.")
         strict_button = confirm_box.addButton("Set STRICT mode.", QMessageBox.ButtonRole.ActionRole)
-        strict_button.setStyleSheet("background: violet")
+        strict_button.setStyleSheet("QPushButton:focus {background: violet}") # does NOT work if try to set !focus too...
         regular_button = confirm_box.addButton("Set REGULAR mode.", QMessageBox.ButtonRole.ActionRole)
-        regular_button.setStyleSheet("background: yellow")
+        regular_button.setStyleSheet("QPushButton:focus {background: paleturquoise}")
         confirm_box.setDefaultButton(strict_button if self.ge.strict_mode else regular_button)
         return confirm_box, strict_button, regular_button
 
@@ -583,9 +583,9 @@ class WordleUI(QMainWindow):
         confirm_box.setStyleSheet(MEDIUM_FONT)
         confirm_box.setText("Are you SURE you want to QUIT the app?")
         continue_button = confirm_box.addButton("No! >> Continue this game...", QMessageBox.ButtonRole.ActionRole)
-        continue_button.setStyleSheet("background: chartreuse")
+        continue_button.setStyleSheet("QPushButton:focus {background: chartreuse}")
         quit_button = confirm_box.addButton("Yes >> QUIT the app.", QMessageBox.ButtonRole.ActionRole)
-        quit_button.setStyleSheet("color: yellow; background: red")
+        quit_button.setStyleSheet("QPushButton:focus {background: red}")
         confirm_box.setDefaultButton(continue_button)
         return confirm_box, continue_button, quit_button
 # END class WordleUI
@@ -661,11 +661,11 @@ class WordleGameEngine:
         self.lgr.debug(f"check response '{resp}' in STRICT mode.")
         for gi in self.green_index:
             if resp[gi] != self.current_target[gi]:
-                self.info_mesg = f"Missing green letter at position {gi+1} in '{resp}'."
+                self.info_mesg = f"Missing green '{self.current_target[gi]}' at position {gi+1}."
                 return False
         for yl in self.yellow_list:
             if yl not in resp:
-                self.info_mesg = f"Missing yellow letter '{yl}'."
+                self.info_mesg = f"Missing yellow '{yl}'."
                 return False
         return True
 
