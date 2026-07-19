@@ -144,6 +144,7 @@ class WordleUI(QMainWindow):
         # set the central widget
         self.setCentralWidget(self.container)
         self.info_box.setText(("Strict" if p_strict else "Regular")+" Mode")
+        self.msg_box.setText(f"Have {(len(self.ge.current_words)):,}  {self.ge.word_length}-letter words.")
         self.input_box.setFocus()
 
     def close(self, /):
@@ -248,15 +249,17 @@ class WordleUI(QMainWindow):
 
     def set_word_length(self):
         new_word_len = int(self.wordlen_combobox.currentText())
-        self.lgr.info(f"Setting word length to {new_word_len}.")
-        self.ge.word_length = new_word_len
-        self.reset(self.ge.strict_mode)
+        if new_word_len != self.ge.word_length:
+            self.lgr.info(f"Setting word length to {new_word_len}.")
+            self.ge.word_length = new_word_len
+            self.reset(self.ge.strict_mode)
 
     def set_num_rows(self):
         new_num_rows = int(self.numrows_combobox.currentText())
-        self.lgr.info(f"Setting number of rows to {new_num_rows}.")
-        self.ge.num_rows = new_num_rows
-        self.reset(self.ge.strict_mode)
+        if new_num_rows != self.ge.num_rows:
+            self.lgr.info(f"Setting number of rows to {new_num_rows}.")
+            self.ge.num_rows = new_num_rows
+            self.reset(self.ge.strict_mode)
 
     @staticmethod
     def create_guess_box(p_text:str=''):
@@ -376,7 +379,7 @@ class WordleUI(QMainWindow):
         qhb_layout.addWidget(self.new_word_btn)
         qhb_layout.addWidget(self.exit_btn)
         qvb_layout = QVBoxLayout()
-        qvb_layout.addWidget(QLabel("\t\t\t\t"))
+        qvb_layout.addWidget(QLabel("\t\t\t\t")) # spacer
         qvb_layout.addLayout(qhb_layout)
         return qvb_layout
 
@@ -647,6 +650,8 @@ class WordleGameEngine:
             self.good_guesses.append(resp)
             return True
         self.bad_guesses.append(resp)
+        if self.check_plurals(resp):
+            self.info_mesg = "Simple plurals are usually just IGNORED..."
         return False
 
     def checkguess_strict_mode(self, resp:str) -> bool:
@@ -661,6 +666,12 @@ class WordleGameEngine:
                 self.info_mesg = f"Missing yellow '{yl}'."
                 return False
         return True
+
+    @staticmethod
+    def check_plurals(resp:str) -> bool:
+        if (resp[-1] == 'S' and resp[-2] != 'S' and resp[:-1] in all_words) or (resp[-2:] == "ES" and resp[:-2] in all_words):
+            return True
+        return False
 
     def save_word_record(self):
         """Save all important information from the current game."""
@@ -691,14 +702,14 @@ def wordle_main():
                 log_control.debug("Invalid arguments.")
                 raise Exception("Invalid arguments.")
             window = WordleUI(int(argv[1]), int(argv[2]))
-            print(f"argv[1]: {argv[1]}, argv[2]: {argv[2]}")
+            log_control.info(f"argv[1]: {argv[1]}, argv[2]: {argv[2]}")
         elif len(argv) > 1:
             if not argv[1].isdigit():
                 print(usage_text)
                 log_control.debug("Invalid argument.")
                 raise Exception("Invalid argument.")
             window = WordleUI(int(argv[1]))
-            print(f"argv[1]: {argv[1]}, p_rows = {DEFAULT_NUM_ROWS}")
+            log_control.info(f"argv[1]: {argv[1]}, p_rows = {DEFAULT_NUM_ROWS}")
         else:
             window = WordleUI()
             log_control.debug("No command line arguments.")
