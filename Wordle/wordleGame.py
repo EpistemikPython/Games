@@ -10,9 +10,8 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.11+"
 __created__ = "2026-07-05"
-__updated__ = "2026-07-18"
+__updated__ = "2026-07-19"
 
-import subprocess
 import random
 from sys import argv, path
 from PySide6.QtCore import Qt, QTimer, QEvent
@@ -57,28 +56,6 @@ INFOBOX_STYLESHEET = f"{MEDIUM_FONT} color:deeppink; background:cyan"
 MSGBOX_STYLESHEET  = f"{MEDIUM_FONT} color:purple; background:lemonchiffon"
 INPUTBOX_STYLESHEET = f"{SMALL_FONT} color: red; background: white" if WORDLE_DEBUG \
                       else f"{SMALL_FONT} color: {INPUT_COLOR}; background: {INPUT_COLOR}"
-
-def check_screen_locked(lgr:logging.Logger=None) -> bool:
-    """See if a screensaver is active."""
-    try:
-        output = subprocess.check_output(["mate-screensaver-command", "-q"]).decode()
-        if output:
-            if lgr and WORDLE_DEBUG:
-                lgr.debug(f"Mate screensaver output: {output}")
-            return "is active" in output
-    except FileNotFoundError:
-        if lgr:
-            lgr.warning("Mate screensaver NOT found!")
-    try:
-        output = subprocess.check_output(["gnome-screensaver-command", "-q"]).decode()
-        if output:
-            if lgr and WORDLE_DEBUG:
-                lgr.debug(f"Gnome screensaver output: {output}")
-            return "is active" in output
-    except FileNotFoundError:
-        if lgr and WORDLE_DEBUG:
-            lgr.warning("Gnome screensaver NOT found!")
-    return False
 
 # noinspection PyAttributeOutsideInit
 class WordleUI(QMainWindow):
@@ -144,7 +121,7 @@ class WordleUI(QMainWindow):
         # set the central widget
         self.setCentralWidget(self.container)
         self.info_box.setText(("Strict" if p_strict else "Regular")+" Mode")
-        self.msg_box.setText(f"Have {(len(self.ge.current_words)):,}  {self.ge.word_length}-letter words.")
+        self.msg_box.setText(f"Have  {(len(self.ge.current_words)):,}  {self.ge.word_length}-letter  words.")
         self.input_box.setFocus()
 
     def close(self, /):
@@ -183,7 +160,7 @@ class WordleUI(QMainWindow):
         mode_action = QAction("Choose &Mode", self)
         mode_action.setShortcut("Ctrl+M")
         mode_action.setStatusTip("Choose STRICT or REGULAR mode")
-        mode_action.triggered.connect(self.strict_mode_inquiry)
+        mode_action.triggered.connect(self.mode_inquiry)
         settings_menu.addAction(mode_action)
 
         # see status tips at the bottom of the window
@@ -262,7 +239,7 @@ class WordleUI(QMainWindow):
             self.reset(self.ge.strict_mode)
 
     @staticmethod
-    def create_guess_box(p_text:str=''):
+    def create_guess_box(p_text:str=""):
         guess_box = QLabel()
         guess_box.resize(75,75)
         guess_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -273,20 +250,18 @@ class WordleUI(QMainWindow):
 
     def create_guess_section(self):
         qvb_layout = QVBoxLayout()
-        row_len = self.ge.word_length
-        num_rows = self.ge.num_rows
-        self.guess_boxes = [[self.create_guess_box() for _ in range(row_len)] for _ in range(num_rows)]
+        self.guess_boxes = [[self.create_guess_box() for _ in range(self.ge.word_length)] for _ in range(self.ge.num_rows)]
 
         layout_rows = []
-        for j in range(num_rows):
+        for j in range(self.ge.num_rows):
             self.lgr.debug(f"Setting guess row #{j}")
             layout_rows.append(QHBoxLayout())
             left_spacer = QLabel()
             layout_rows[j].addWidget(left_spacer)
             layout_rows[j].setStretchFactor(left_spacer, 2)
-            for k in range(row_len):
+            for k in range(self.ge.word_length):
                 self.lgr.debug(f"Setting guess box #{j}-{k}")
-                self.guess_boxes[j][k].setText('')
+                self.guess_boxes[j][k].clear()
                 layout_rows[j].addWidget(self.guess_boxes[j][k])
                 layout_rows[j].setStretchFactor(self.guess_boxes[j][k], 1)
             right_spacer = QLabel()
@@ -298,7 +273,7 @@ class WordleUI(QMainWindow):
     def reset_guesses(self):
         for i in range(self.ge.num_rows):
             for j in range(self.ge.word_length):
-                self.guess_boxes[i][j].setText("")
+                self.guess_boxes[i][j].clear()
                 self.guess_boxes[i][j].setStyleSheet(GUESS_BASIC_STYLESHEET)
 
     def create_msg_box(self):
@@ -409,7 +384,7 @@ class WordleUI(QMainWindow):
             self.lgr.info(f"'{entry}' is a valid word.")
             self.mark_current_guess()
             self.active_row += 1
-            self.current_guess = ''
+            self.current_guess = ""
             self.input_box.clear()
             if self.active and self.active_row == self.ge.num_rows:
                 self.failure()
@@ -421,7 +396,7 @@ class WordleUI(QMainWindow):
 
     def clear_guess_row(self, row_num:int):
         for i in range(self.ge.word_length):
-            self.guess_boxes[row_num][i].setText('')
+            self.guess_boxes[row_num][i].clear()
 
     def mark_current_guess(self):
         """Mark the current guess boxes as green, yellow or grey & the result letters as green or red."""
@@ -488,7 +463,7 @@ class WordleUI(QMainWindow):
     def update_clock(self):
         """Update the game clock when the game is active."""
         log_pause = 600 if self.lock_count > 10 else 60
-        locked = check_screen_locked(self.lgr) # pause when the screen is locked
+        locked = check_screen_locked(self.lgr, WORDLE_DEBUG) # pause when the screen is locked
         if not self.active or locked or self.isMinimized() or self.isHidden(): # pause when the game is inactive
             self.pause_secs += 1
             if self.pause_secs % log_pause == 0:
@@ -504,9 +479,29 @@ class WordleUI(QMainWindow):
             self.lgr.debug(f"set focus to input box at {self.run_secs}")
             self.input_box.setFocus()
 
-    def strict_mode_inquiry(self):
-        """Ask if the user wants to set strict or regular mode."""
-        confirm_box, strict_button, regular_button = self.confirm_mode()
+    def new_word_inquiry(self):
+        """Evaluate if the user wants a new secret word."""
+        confirm_box, continue_button, new_word_button = self.create_new_word_msgbox()
+        confirm_box.exec()
+        if confirm_box.clickedButton() == continue_button:
+            self.lgr.info("Continuing this game.")
+        elif confirm_box.clickedButton() == new_word_button:
+            self.lgr.info("Starting over with a new word.")
+            self.reset(self.ge.strict_mode)
+
+    def exit_inquiry(self):
+        """Evaluate if the user wants to exit the app."""
+        confirm_box, continue_button, quit_button = self.create_exit_msgbox()
+        confirm_box.exec()
+        if confirm_box.clickedButton() == continue_button:
+            self.lgr.info("Continuing the game.")
+        elif confirm_box.clickedButton() == quit_button:
+            self.lgr.info("Quit the app.")
+            self.close()
+
+    def mode_inquiry(self):
+        """Evaluate if the user wants strict or regular mode."""
+        confirm_box, strict_button, regular_button = self.create_mode_msgbox()
         confirm_box.exec()
         if confirm_box.clickedButton() == strict_button:
             self.ge.strict_mode = True
@@ -517,26 +512,6 @@ class WordleUI(QMainWindow):
             self.info_box.setText("Regular Mode")
             self.lgr.info("SET regular mode.")
 
-    def exit_inquiry(self):
-        """Ask if the user wants to exit the app."""
-        confirm_box, continue_button, quit_button = self.confirm_exit()
-        confirm_box.exec()
-        if confirm_box.clickedButton() == continue_button:
-            self.lgr.info("Continuing the game.")
-        elif confirm_box.clickedButton() == quit_button:
-            self.lgr.info("Quit the app.")
-            self.close()
-
-    def new_word_inquiry(self):
-        """Ask if the user wants a NEW secret word."""
-        confirm_box, continue_button, new_word_button = self.confirm_new_word()
-        confirm_box.exec()
-        if confirm_box.clickedButton() == continue_button:
-            self.lgr.info("Continuing this game.")
-        elif confirm_box.clickedButton() == new_word_button:
-            self.lgr.info("Starting over with a new word.")
-            self.reset(self.ge.strict_mode)
-
     def display_instructions(self):
         """Display 'How to play Wordle'."""
         infobox = QMessageBox()
@@ -546,8 +521,8 @@ class WordleUI(QMainWindow):
         infobox.setMinimumWidth(720) # DOES NOTHING... ?!
         infobox.exec()
 
-    def confirm_new_word(self):
-        """Confirm that the user wants a NEW secret word."""
+    def create_new_word_msgbox(self):
+        """Create a QMessageBox to ask about getting a new secret word."""
         confirm_box = QMessageBox()
         confirm_box.setIcon(QMessageBox.Icon.Question)
         confirm_box.setStyleSheet(MEDIUM_FONT)
@@ -559,8 +534,21 @@ class WordleUI(QMainWindow):
         confirm_box.setDefaultButton(continue_button if self.active else new_word_button)
         return confirm_box, continue_button, new_word_button
 
-    def confirm_mode(self):
-        """Check if the user wants to use strict or regular mode."""
+    def create_exit_msgbox(self):
+        """Create a QMessageBox to ask about exiting the app."""
+        confirm_box = QMessageBox()
+        confirm_box.setIcon(QMessageBox.Icon.Question)
+        confirm_box.setStyleSheet(MEDIUM_FONT)
+        confirm_box.setText("Are you SURE you want to QUIT the app?")
+        continue_button = confirm_box.addButton("No! >> Continue this game...", QMessageBox.ButtonRole.ActionRole)
+        continue_button.setStyleSheet("QPushButton:focus {background: chartreuse}")
+        quit_button = confirm_box.addButton("Yes >> QUIT the app.", QMessageBox.ButtonRole.ActionRole)
+        quit_button.setStyleSheet("QPushButton:focus {background: red}")
+        confirm_box.setDefaultButton(continue_button if self.active else quit_button)
+        return confirm_box, continue_button, quit_button
+
+    def create_mode_msgbox(self):
+        """Create a QMessageBox to ask about using strict or regular mode."""
         confirm_box = QMessageBox()
         confirm_box.setIcon(QMessageBox.Icon.Question)
         confirm_box.setStyleSheet(MEDIUM_FONT)
@@ -571,20 +559,6 @@ class WordleUI(QMainWindow):
         regular_button.setStyleSheet("QPushButton:focus {background: paleturquoise}")
         confirm_box.setDefaultButton(strict_button if self.ge.strict_mode else regular_button)
         return confirm_box, strict_button, regular_button
-
-    @staticmethod
-    def confirm_exit():
-        """Confirm that the user wants to exit the app."""
-        confirm_box = QMessageBox()
-        confirm_box.setIcon(QMessageBox.Icon.Question)
-        confirm_box.setStyleSheet(MEDIUM_FONT)
-        confirm_box.setText("Are you SURE you want to QUIT the app?")
-        continue_button = confirm_box.addButton("No! >> Continue this game...", QMessageBox.ButtonRole.ActionRole)
-        continue_button.setStyleSheet("QPushButton:focus {background: chartreuse}")
-        quit_button = confirm_box.addButton("Yes >> QUIT the app.", QMessageBox.ButtonRole.ActionRole)
-        quit_button.setStyleSheet("QPushButton:focus {background: red}")
-        confirm_box.setDefaultButton(continue_button)
-        return confirm_box, continue_button, quit_button
 # END class WordleUI
 
 # noinspection PyAttributeOutsideInit
@@ -641,7 +615,7 @@ class WordleGameEngine:
         elif resp not in self.current_words:
             result = False
         elif p_current_row > 0 and self.strict_mode:
-            result = self.checkguess_strict_mode(resp)
+            result = self.checkguess_strict(resp)
         else:
             result = True
         if result:
@@ -650,11 +624,11 @@ class WordleGameEngine:
             self.good_guesses.append(resp)
             return True
         self.bad_guesses.append(resp)
-        if self.check_plurals(resp):
-            self.info_mesg = "Simple plurals are usually just IGNORED..."
+        if check_plural(resp, all_words):
+            self.info_mesg = "Most simple plurals are just IGNORED..."
         return False
 
-    def checkguess_strict_mode(self, resp:str) -> bool:
+    def checkguess_strict(self, resp:str) -> bool:
         """Make sure that previous green and yellow responses are carried over."""
         self.lgr.debug(f"check response '{resp}' in STRICT mode.")
         for gi in self.green_index:
@@ -666,12 +640,6 @@ class WordleGameEngine:
                 self.info_mesg = f"Missing yellow '{yl}'."
                 return False
         return True
-
-    @staticmethod
-    def check_plurals(resp:str) -> bool:
-        if (resp[-1] == 'S' and resp[-2] != 'S' and resp[:-1] in all_words) or (resp[-2:] == "ES" and resp[:-2] in all_words):
-            return True
-        return False
 
     def save_word_record(self):
         """Save all important information from the current game."""
