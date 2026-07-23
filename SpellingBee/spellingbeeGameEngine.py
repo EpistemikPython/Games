@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2026-05-11"
+__updated__ = "2026-07-23"
 
 import random
 from sys import path
@@ -18,8 +18,8 @@ path.append("/home/marksa/git/Python/utils")
 from mhsUtils import *
 from mhsLogging import *
 from enum import Enum
-path.append("/home/marksa/git/Python/Games/SpellingBee/input")
-from spellingbee_words import all_sb_words as sb_words
+path.append("/home/marksa/git/Python/Games/input")
+from all_words import all_game_words as sb_words
 
 MIN_WORD_LENGTH = 4
 MAX_WORD_LENGTH = 21
