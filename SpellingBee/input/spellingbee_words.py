@@ -9,6 +9,8 @@
 
 all_sb_words = [
     "AARDVARK",
+    "PENT",
+    "TEMPTER",
     "AARDWOLF",
     "ABACA",
     "ABACI",
@@ -16032,6 +16034,7 @@ all_sb_words = [
     "PENOLOGY",
     "PENSION",
     "PENSIVE",
+    "PENT",
     "PENTACLE",
     "PENTAGON",
     "PENTAMETER",
@@ -16160,6 +16163,7 @@ all_sb_words = [
     "PESTLE",
     "PETAL",
     "PETARD",
+    "PETER",
     "PETERED",
     "PETERING",
     "PETIOLE",
@@ -19621,6 +19625,7 @@ all_sb_words = [
     "SHALLOW",
     "SHALT",
     "SHAM",
+    "SHAMAN",
     "SHAMBLES",
     "SHAME",
     "SHAMELESS",
