@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.11+"
 __created__ = "2026-07-05"
-__updated__ = "2026-07-23"
+__updated__ = "2026-07-25"
 
 import random
 from sys import argv, path
@@ -25,9 +25,10 @@ path.append("/home/marksa/git/Python/Games/input")
 from all_words import all_game_words as wordle_words
 
 # DEBUG_TARGET = "FELIS" # test words = MESSY, LEAFY, SILLY, AFFIX, SLIME, FLESH
-DEBUG_TARGET = "PUPPY" # test words = APPLE, PAPER, PLUMP, TAUPE, UPPER, GUPPY
+# DEBUG_TARGET = "PUPPY" # test words = APPLE, PAPER, PLUMP, TAUPE, UPPER, GUPPY
 # DEBUG_TARGET = "GUPPY" # test words = PLUMP, PAPER, UPPER, UNDUE, PUPPY, BUGGY
 WORDLE_DEBUG = False
+DEBUG_TARGET = "GENERA" # SAILOR TRACED MANURE BARREN RENEGE VENEER
 
 ORDERED_LETTERS = "AEIOUYLNRSTCDHMPBFGKWJQVXZ"
 MIN_WORD_LENGTH = 4
@@ -45,6 +46,7 @@ XLARGE_FONT = "font-size: 36pt;"
 FONT_BOLD   = "font-weight: bold;"
 INPUT_COLOR = "linen" # "rgb(241, 241, 241)"
 
+BOX_FRAME_STYLE = QFrame.Shape.Box | QFrame.Shadow.Raised
 GUESS_BASIC_STYLESHEET  = f"{XLARGE_FONT}; color: blue;  background: white"
 GUESS_EXACT_STYLESHEET  = f"{XLARGE_FONT}; color: black; background: green; {FONT_BOLD}"
 GUESS_OCCUR_STYLESHEET  = f"{XLARGE_FONT}; color: black; background: yellow"
@@ -62,7 +64,7 @@ class WordleUI(QMainWindow):
     """UI to play the Wordle game."""
     def __init__(self, p_len:int=DEFAULT_WORD_LENGTH, p_rows:int=DEFAULT_NUM_ROWS):
         super().__init__()
-        self.setWindowTitle("My Wordle Game")
+        self.setWindowTitle("My Wordle App")
         # pixels: dx from left, dy from top, width, height
         self.setGeometry(600, 100, 640, 760)
 
@@ -183,7 +185,7 @@ class WordleUI(QMainWindow):
 
         self.info_box = QLabel()
         self.info_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.info_box.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
+        self.info_box.setFrameStyle(BOX_FRAME_STYLE)
         self.info_box.setStyleSheet(INFOBOX_STYLESHEET)
 
         self.wordlen_combobox = QComboBox(self)
@@ -243,7 +245,7 @@ class WordleUI(QMainWindow):
         guess_box = QLabel()
         guess_box.resize(p_sidelen, p_sidelen)
         guess_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        guess_box.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
+        guess_box.setFrameStyle(BOX_FRAME_STYLE)
         return guess_box
 
     def create_guess_section(self):
@@ -280,7 +282,7 @@ class WordleUI(QMainWindow):
     def create_msg_box(self, p_style:str=MSGBOX_STYLESHEET):
         self.msg_box = QLabel()
         self.msg_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.msg_box.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Raised)
+        self.msg_box.setFrameStyle(BOX_FRAME_STYLE)
         self.msg_box.setStyleSheet(p_style)
         return self.msg_box
 
@@ -363,11 +365,11 @@ class WordleUI(QMainWindow):
         """Place the response letters in the guess boxes of the current row."""
         if not self.active:
             return
-        self.lgr.info(f"Response changed to '{p_resp}'; Input box text = {self.input_box.text()}")
+        self.lgr.debug(f"Response changed to '{p_resp}'; Input box text = {self.input_box.text()}")
         self.clear_guess_row(self.active_row)
         self.msg_box.setText(f"Row {self.active_row+1} is active. Text = '{p_resp}'")
         if p_resp:
-            self.current_guess = p_resp
+            self.current_guess = get_clean_word(p_resp)
             current_box = 0
             for letter in p_resp:
                 self.guess_boxes[self.active_row][current_box].setText(letter)
@@ -377,11 +379,11 @@ class WordleUI(QMainWindow):
         """'Enter' key was pressed so check if the current response is a valid word then mark the guess and result boxes."""
         if not self.active:
             return
-        entry = self.current_guess
-        self.lgr.info(f"{"Strict" if self.ge.strict_mode else "Regular"} mode >> Process response '{entry}'.")
-        if not entry:
+        self.lgr.info(f"{"Strict" if self.ge.strict_mode else "Regular"} mode >> process response '{self.current_guess}'.")
+        if not self.current_guess:
+            self.lgr.info(">> NOT a valid response.")
             return
-        if self.ge.check_guess(entry, self.active_row):
+        if self.ge.check_guess(self.current_guess, self.active_row):
             self.mark_current_guess()
             self.active_row += 1
             self.current_guess = ""
@@ -389,7 +391,7 @@ class WordleUI(QMainWindow):
             if self.active and self.active_row == self.ge.num_rows:
                 self.success(False)
         else:
-            mesg = self.ge.info_mesg if self.ge.info_mesg else f"'{entry}' is NOT a valid word... :("
+            mesg = self.ge.info_mesg if self.ge.info_mesg else f"'{self.current_guess}' is NOT a valid word... :("
             self.lgr.info(mesg)
             self.msg_box.setText(mesg)
         self.ge.info_mesg = ""
@@ -400,6 +402,7 @@ class WordleUI(QMainWindow):
         guess_idx = [ _ for _ in range(len(self.current_guess)) ]
         self.lgr.debug(f"guess index list = {guess_idx}.")
         targ = self.ge.current_target
+        self.lgr.info(f"current target = '{self.ge.current_target}'")
         for i in range(self.ge.word_length):
             # EXACT match of letter position in guess and target
             if self.current_guess[i] == self.ge.current_target[i]:
@@ -408,34 +411,29 @@ class WordleUI(QMainWindow):
                 if i not in self.ge.green_index:
                     self.ge.green_index.append(i)
                     self.ge.green_index.sort()
-                    self.lgr.debug(f"self.ge.green_index = {self.ge.green_index}")
-                tdx = targ.index(self.ge.current_target[i])
-                targ = targ[:tdx] + targ[tdx+1:]
-                self.lgr.info(f"Exact @ [{i}] > '{self.current_guess[i]}'; targ = '{targ}'; "
-                              f"current target = '{self.ge.current_target}'")
+                    self.lgr.debug(f"green index = {self.ge.green_index}")
+                self.lgr.info(f"Exact @ [{i}] > '{self.current_guess[i]}'; search = '{targ}'; ")
+                targ = targ.replace(self.ge.current_target[i], '', 1)
             # guessed letter is ABSENT from target
             elif self.current_guess[i] not in self.ge.current_target:
                 self.guess_boxes[self.active_row][i].setStyleSheet(GUESS_ABSENT_STYLESHEET)
                 guess_idx.remove(i)
-                self.lgr.info(f"Absent @ [{i}] > '{self.current_guess[i]}'; current target = '{self.ge.current_target}'")
+                self.lgr.info(f"Absent @ [{i}] > '{self.current_guess[i]}'")
             else:
-                self.lgr.info(f"Occurrence of '{self.current_guess[i]}' at [{i}].")
-        self.lgr.debug(f"guess = '{guess_idx}'; targ = '{targ}'")
+                self.lgr.debug(f"Check occurrence of '{self.current_guess[i]}' at [{i}].")
+        self.lgr.debug(f"guess index = '{guess_idx}'; search = '{targ}'")
         # find target letters present in the guess but at a different position
         for j in guess_idx:
             if self.current_guess[j] in targ:
                 self.guess_boxes[self.active_row][j].setStyleSheet(GUESS_OCCUR_STYLESHEET)
-                self.lgr.debug(f"Index[{j}]: Mark occurrence of '{self.current_guess[j]}'")
                 if self.current_guess[j] not in self.ge.yellow_list:
                     self.ge.yellow_list.append(self.current_guess[j])
-                    self.lgr.debug(f"self.ge.yellow_list = {self.ge.yellow_list}")
-                gdx = targ.index(self.current_guess[j])
-                targ = targ[:gdx] + targ[gdx+1:]
-                self.lgr.info(f"Occurrence @ [{j}] > '{self.current_guess[j]}'; targ = '{targ}'; "
-                              f"current target = '{self.ge.current_target}'")
+                    self.lgr.debug(f"yellow list = {self.ge.yellow_list}")
+                self.lgr.info(f"Occurrence @ [{j}] > '{self.current_guess[j]}'; search = '{targ}'")
+                targ = targ.replace(self.current_guess[j], '', 1)
             else:
                 self.guess_boxes[self.active_row][j].setStyleSheet(GUESS_ABSENT_STYLESHEET)
-                self.lgr.info(f"Absent @ [{j}] > '{self.current_guess[j]}'; targ = '{targ}'")
+                self.lgr.info(f"Absent @ [{j}] > '{self.current_guess[j]}'; search = '{targ}'")
         # RESULT boxes
         for j in range(len(self.result_boxes)):
             check_letter = self.result_boxes[j].text()
@@ -593,7 +591,8 @@ class WordleGameEngine:
         self.saved = False
         self.outcome = ""
         self.get_current_words()
-        self.current_target = DEBUG_TARGET if WORDLE_DEBUG else self.current_words[random.randrange(0, len(self.current_words))]
+        self.current_target = DEBUG_TARGET if WORDLE_DEBUG and len(DEBUG_TARGET) == self.word_length\
+                                else self.current_words[random.randrange(0, len(self.current_words))]
         self.lgr.info(f"current target word = {self.current_target}; total number of words = {len(self.current_words)}")
 
     def get_current_words(self):
