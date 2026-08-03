@@ -10,9 +10,8 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.10+"
 __created__ = "2025-08-18"
-__updated__ = "2026-06-15"
+__updated__ = "2026-08-03"
 
-import subprocess
 from enum import IntEnum
 from sys import argv
 from PySide6.QtCore import Qt, QTimer
