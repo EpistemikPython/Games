@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.11+"
 __created__ = "2025-08-18"
-__updated__ = "2026-08-03"
+__updated__ = "2026-08-10"
 
 from enum import IntEnum
 from sys import argv, path
@@ -31,7 +31,6 @@ SB_DEBUG = False
 MIN_WORD_LENGTH = 4
 MAX_WORD_LENGTH = 21
 PANGRAM_LENGTH = 7
-SBGE_DEBUG = True
 
 class PointLevel(Enum):
     Beginning   = 0.0
@@ -63,21 +62,24 @@ FONT_ITALIC = "font-style: italic;"
 PLURALS_MSG = "Most simple PLURALS are IGNORED  :p"
 INFO_TEXT = ("   How to Play the Game:\n"
              "---------------------------------------------\n"
-             f"1) Using ONLY the displayed letters, enter a word (at least {MIN_WORD_LENGTH} letters long) in the 'Try' box.\n\n"
+            f"1) Using ONLY the displayed letters, enter a word (at least {MIN_WORD_LENGTH} letters long) in the 'Try' box.\n\n"
              "2) Any number of each displayed letter is allowed, but the Central letter MUST be present in the word.\n\n"
              "3) Press ENTER to evaluate your guess.\n\n"
              "4) FYI, most simple plurals are just ignored... \n\n"
              "5) You can press the space bar to scramble the PLACEMENT of the outer letters.\n\n"
              "6) Your Valid or Invalid guesses are displayed in the appropriate boxes.\n\n"
-             "7) Pangrams are words that use ALL seven letters -- and earn DOUBLE points!\n\n"
-             "8) Exit the game when you are ready and your game information will be saved to a JSON file.")
+            f"7) {MIN_WORD_LENGTH}-letter words earn 1 point; all other words earn 1 point per letter, "
+                 "with Pangrams having a special bonus.\n\n"
+             "8) Pangrams are words that use ALL seven letters -- and earn DOUBLE the regular points!\n\n"
+             "9) Exit the game when you are ready and your game information will be saved to a JSON file.")
 
 def display_info():
     infobox = QMessageBox()
     infobox.setIcon(QMessageBox.Icon.Information)
     infobox.setStyleSheet(SMALL_FONT)
     infobox.setText(INFO_TEXT)
-    # infobox.setMinimumWidth(960) # DOES NOTHING... ?!
+    infobox.setMinimumWidth(1200) # DOES NOTHING... ?!
+    infobox.setFixedWidth(960) # DOES NOTHING... ?!
     infobox.exec()
 
 def confirm_exit():
@@ -132,7 +134,7 @@ class SpellingBeeUI(QMainWindow):
         super().__init__()
         self.setWindowTitle("My SpellingBee Game")
         # pixels: dx from left, dx from top, width, height
-        self.setGeometry(500, 50, 640, 960)
+        self.setGeometry(520, 64, 680, 960)
 
         self.lgr = log_control.get_logger()
         self.lgr.log(DEFAULT_LOG_LEVEL, f"{self.windowTitle()} runtime = {get_current_time()}")
@@ -418,14 +420,14 @@ class SpellingBeeUI(QMainWindow):
         next_lett = picked[0]
         self.lower_right_letter.setText(next_lett)
 
-    def response_change(self, resp:str):
-        self.lgr.debug(f"Response changed to: '{resp}'")
-        if resp:
-            if resp[-1] == " ":
+    def response_change(self, p_resp:str):
+        self.lgr.debug(f"Response changed to: '{p_resp}'")
+        if p_resp:
+            if p_resp[-1] == " ":
                 # re-arrange the outer letters when space bar pressed
                 self.scramble_letters()
                 self.message_box.setText("Scramble!")
-            self.current_response = get_clean_word(resp)
+            self.current_response = get_clean_word(p_resp)
             self.response_box.setText(self.current_response)
 
     def process_response(self):
@@ -573,64 +575,59 @@ class SpellingbeeGameEngine:
             self.lgr.info(f"Saved game record as: {grfile}")
             self.saved = True
 
-    def check_guess(self, resp:str) -> bool:
+    def check_guess(self, p_resp:str) -> bool:
         """Check all letters for a good response and also see if a pangram."""
-        self.lgr.debug(f"check response '{resp}':")
-        self.current_guess = get_clean_word(resp)
+        self.lgr.debug(f"check response '{p_resp}':")
+        self.current_guess = get_clean_word(p_resp)
         if self.current_guess in self.answer_list:
             self.lgr.info(f"{self.current_guess} is a GOOD guess!")
             self.good_guesses.append(self.current_guess)
-            self.current_points = (1 if len(resp) == MIN_WORD_LENGTH else len(resp))
+            self.current_points = (1 if len(p_resp) == MIN_WORD_LENGTH else len(p_resp))
             self.num_good_guesses += 1
-            if self.check_pangram():
+            if self.check_pangram(self.current_guess):
                 self.lgr.info(f"{self.current_guess} is a PANGRAM!")
                 self.pangram_guesses.append(self.current_guess)
-                self.current_points += len(resp) # PANGRAM BONUS
+                self.current_points += len(p_resp) # PANGRAM BONUS
             self.point_total += self.current_points
             return True
 
         self.lgr.info(f"{self.current_guess} is a BAD guess!")
-        if not self.check_letters():
+        if not self.check_letters(self.current_guess):
             self.bad_letter_guesses.append(self.current_guess)
             return False
         self.bad_word_guesses.append(self.current_guess)
         return False
 
-    def check_bad_letter(self, word:str = "") -> bool:
-        if not word:
-            word = self.current_guess
-        for lett in word:
+    def check_bad_letter(self, p_word:str) -> bool:
+        for lett in p_word:
             if lett != self.required_letter and lett not in self.surround_letters:
                 self.bad_letter = lett
                 return True
         self.bad_letter = ""
         return False
 
-    def check_letters(self, word:str = "") -> bool:
-        if not word:
-            word = self.current_guess
-        if self.required_letter not in word:
+    def check_letters(self, p_word:str) -> bool:
+        if self.required_letter not in p_word:
             return False
-        if self.check_bad_letter(word):
+        if self.check_bad_letter(p_word):
             return False
         return True
 
-    def check_word(self, word:str = "") -> bool:
-        if not word:
-            word = self.current_guess
-        if word in sb_words:
-            return True
-        return False
-
-    def check_pangram(self, word:str = "") -> bool:
-        if not word:
-            word = self.current_guess
-        if self.required_letter not in word:
+    def check_pangram(self, p_word:str) -> bool:
+        if self.required_letter not in p_word:
             return False
         for lett in self.surround_letters:
-            if lett not in word:
+            if lett not in p_word:
                 return False
         return True
+
+    def check_plurals(self, p_word:str) -> bool:
+        if p_word in self.answer_list:
+            return False
+        if ( (p_word[-1] == 'S' and p_word[-2] != 'S' and p_word[:-1] in sb_words)
+              or (p_word[-2:] == "ES" and p_word[:-2] in sb_words) ):
+            return True
+        return False
 
     def load_pangrams(self):
         for it in sb_words:
@@ -644,7 +641,7 @@ class SpellingbeeGameEngine:
                     result.append(lett)
             if len(result) == PANGRAM_LENGTH:
                 self.pangrams.append(item)
-        if SBGE_DEBUG:
+        if SB_DEBUG:
             fname = save_to_json("pangrams", self.pangrams)
             self.lgr.info(f"Saved file: {fname}.")
 
@@ -660,13 +657,13 @@ class SpellingbeeGameEngine:
             self.lgr.warning("Trying to find answers but NO word list!")
             return
         for item in sb_words:
-            if self.check_letters(item) and self.check_word(item):
+            if self.check_letters(item):
                 self.answer_list.append(item)
         self.answer_list.sort()
         self.total_num_answers = len(self.answer_list)
         self.lgr.info(f"Total number of acceptable answers for '{self.required_letter}' + {self.surround_letters}"
                        f" = {self.total_num_answers}")
-        if SBGE_DEBUG:
+        if SB_DEBUG:
             fname = save_to_json("current_answer_list", self.answer_list)
             self.lgr.info(f"Saved file: {fname}.")
 
@@ -684,15 +681,6 @@ class SpellingbeeGameEngine:
         self.maximum_points = point_total
         self.lgr.info(f"Maximum points = {self.maximum_points}.")
         return point_total
-
-    def check_plurals(self, word:str = "") -> bool:
-        if not word:
-            word = self.current_guess
-        if word in self.answer_list:
-            return False
-        if (word[-1] == 'S' and word[-2] != 'S' and word[:-1] in sb_words) or (word[-2:] == "ES" and word[:-2] in sb_words):
-            return True
-        return False
 
     def missed_answers(self) -> list:
         results = []
