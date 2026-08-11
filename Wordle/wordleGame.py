@@ -66,7 +66,7 @@ class WordleUI(QMainWindow):
         super().__init__()
         self.setWindowTitle("My Wordle App")
         # pixels: dx from left, dy from top, width, height
-        self.setGeometry(600, 100, 640, 760)
+        self.setGeometry(600, 110, 680, 800)
 
         self.lgr = log_control.get_logger()
         self.lgr.log(DEFAULT_LOG_LEVEL, f"{self.windowTitle()} start time = {get_current_time()}"
@@ -510,7 +510,7 @@ class WordleUI(QMainWindow):
         infobox = QMessageBox()
         infobox.setIcon(QMessageBox.Icon.Information)
         infobox.setStyleSheet(SMALL_FONT)
-        infobox.setText(self.ge.instructions)
+        infobox.setText(self.ge.get_instructions())
         infobox.setMinimumWidth(720) # DOES NOTHING... ?!
         infobox.exec()
 
@@ -563,18 +563,6 @@ class WordleGameEngine:
             self.word_length = p_len
         if MIN_NUM_ROWS <= p_rows <= MAX_NUM_ROWS:
             self.num_rows = p_rows
-        self.instructions = ("\tHow to Play Wordle:\n"
-                        "---------------------------------------------------------------------------------\n"
-                        f"1) Try to guess the secret {self.word_length}-letter word.\n\n"
-                        f"2) Type a {self.word_length}-letter word and press ENTER to evaluate it. "
-                        f" Your entry will be accepted if it is a VALID Wordle word.\n\n"
-                        "3) Each letter in the correct position will shade GREEN.\n\n"
-                        "4) Letters present in the secret word but in the WRONG POSITION in your guess will shade YELLOW.\n\n"
-                        "5) Any letter NOT present in the secret word will shade GREY.\n\n"
-                        "6) In STRICT mode any 'green' and 'yellow' letters found in a guess MUST be used in subsequent guesses.\n\n"
-                        f"7) You have {self.num_rows} attempts to find the secret word.\n\n"
-                        "8) >> Resetting the word length or number of rows will start a BRAND NEW game.\n\n"
-                        "9) If you Quit the app (Ctrl-Q) or start a New word (Ctrl-N) your current game results will be saved to a file.")
         self.good_guesses = None
         self.lgr.info(f"Initialized Game Engine >> Word length = {self.word_length}; Number of rows = {self.num_rows}.")
 
@@ -594,6 +582,21 @@ class WordleGameEngine:
         self.current_target = DEBUG_TARGET if WORDLE_DEBUG and len(DEBUG_TARGET) == self.word_length\
                                 else self.current_words[random.randrange(0, len(self.current_words))]
         self.lgr.info(f"current target word = {self.current_target}; total number of words = {len(self.current_words)}")
+
+    def get_instructions(self) -> str:
+        """Need as a function so word_length and num_rows get updated."""
+        return ("\tHow to Play Wordle:\n"
+                "---------------------------------------------------------------------------------\n"
+                f"1) Try to guess the secret {self.word_length}-letter word.\n\n"
+                f"2) Type a {self.word_length}-letter word and press ENTER to evaluate it. "
+                f" Your entry will be accepted if it is a VALID Wordle word.\n\n"
+                "3) Each letter in the correct position will shade GREEN.\n\n"
+                "4) Letters present in the secret word but in the WRONG POSITION in your guess will shade YELLOW.\n\n"
+                "5) Any letter NOT present in the secret word will shade GREY.\n\n"
+                "6) In STRICT mode any 'green' and 'yellow' letters found in a guess MUST be used in subsequent guesses.\n\n"
+                f"7) You have {self.num_rows} attempts to find the secret word.\n\n"
+                "8) >> Resetting the word length or number of rows will start a BRAND NEW game.\n\n"
+                "9) If you Quit the app (Ctrl-Q) or start a New word (Ctrl-N) your current game results will be saved to a file.")
 
     def get_current_words(self):
         """Get all words that match the current word length."""
@@ -648,13 +651,15 @@ class WordleGameEngine:
             grfile = save_to_json(f"WordleGameRecord_{self.current_target}", game_record)
             self.saved = True
             self.lgr.info(f"Saved game record as: {grfile}\n\n\n======================================\n")
+            return grfile
+        return "No good guesses."
 # END class WordleGameEngine
 
 
 log_control = MhsLogger(WordleUI.__name__, con_level = DEFAULT_LOG_LEVEL)
 
 def wordle_main():
-    usage_text = f"Usage: python3 {get_filename(argv[0])} [$word_length] [$num_rows]\n"
+    usage_text = f"Usage: python3 {get_filename(argv[0])} [word_length:int] [num_rows:int]\n"
     if len(argv) > 3:
         print(usage_text)
         log_control.debug("Usage instructions.")
@@ -668,14 +673,14 @@ def wordle_main():
             if not argv[1].isdigit() or not argv[2].isdigit():
                 print(usage_text)
                 log_control.debug("Invalid arguments.")
-                raise Exception("Invalid arguments.")
+                raise ValueError("Invalid arguments.")
             window = WordleUI(int(argv[1]), int(argv[2]))
             log_control.info(f"argv[1]: {argv[1]}, argv[2]: {argv[2]}")
         elif len(argv) > 1:
             if not argv[1].isdigit():
                 print(usage_text)
                 log_control.debug("Invalid argument.")
-                raise Exception("Invalid argument.")
+                raise ValueError("Invalid argument.")
             window = WordleUI(int(argv[1]))
             log_control.info(f"argv[1]: {argv[1]}, p_rows = {DEFAULT_NUM_ROWS}")
         else:
