@@ -10,12 +10,12 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.11+"
 __created__ = "2026-07-05"
-__updated__ = "2026-07-25"
+__updated__ = "2026-08-15"
 
 import random
 from sys import argv, path
 from PySide6.QtCore import Qt, QTimer, QEvent
-from PySide6.QtGui import QAction, QColor
+from PySide6.QtGui import QAction, QColor, QMouseEvent
 from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                QPushButton, QMainWindow, QMessageBox, QLineEdit, QFrame, QComboBox)
 path.append("/home/marksa/git/Python/utils")
@@ -27,8 +27,9 @@ from all_words import all_game_words as wordle_words
 # DEBUG_TARGET = "FELIS" # test words = MESSY, LEAFY, SILLY, AFFIX, SLIME, FLESH
 # DEBUG_TARGET = "PUPPY" # test words = APPLE, PAPER, PLUMP, TAUPE, UPPER, GUPPY
 # DEBUG_TARGET = "GUPPY" # test words = PLUMP, PAPER, UPPER, UNDUE, PUPPY, BUGGY
-WORDLE_DEBUG = False
-DEBUG_TARGET = "GENERA" # SAILOR TRACED MANURE BARREN RENEGE VENEER
+WORDLE_DEBUG = 1
+# DEBUG_TARGET = "GENERA" # SAILOR TRACED MANURE BARREN RENEGE VENEER
+DEBUG_TARGET = "ECZEMA" # SAILOR TEAMED ENAMEL EMPATH
 
 ORDERED_LETTERS = "AEIOUYLNRSTCDHMPBFGKWJQVXZ"
 MIN_WORD_LENGTH = 4
@@ -80,8 +81,8 @@ class WordleUI(QMainWindow):
             for c in wcolors:
                 self.lgr.info(f"{c}")
 
+        self.run_secs = 0
         wtimer = QTimer(self)
-        # wtimer.setTimerType(Qt.TimerType.PreciseTimer)
         wtimer.start(1000) # in msec = 1 second
         wtimer.timeout.connect(self.update_clock)
 
@@ -92,13 +93,15 @@ class WordleUI(QMainWindow):
 
     def reset(self, p_strict:bool=False):
         """Reset all the fields needed to start a new game."""
-        self.ge.save_word_record()
+        self.ge.save_word_record(self.run_secs)
         self.lgr.info("Starting a NEW Game!")
         self.ge.start(p_strict)
         self.active = True
         self.current_guess = ""
         self.active_row = 0
         self.button_hover = False
+        # allow words not in the constructed list
+        self.override = False
         # game clock
         self.run_secs = 0
         self.pause_secs = 0
@@ -109,17 +112,17 @@ class WordleUI(QMainWindow):
             self.container.deleteLater()
         # build a brand new container widget
         self.container = QWidget()
-        self.main_layout = QVBoxLayout(self.container)
+        main_layout = QVBoxLayout(self.container)
         # add elements to the layout
-        self.main_layout.addLayout(self.create_top_section())
+        main_layout.addLayout(self.create_top_section())
         self.input_box.clear()
         self.clock.setText("00:00")
-        self.main_layout.addLayout(self.create_guess_section())
+        main_layout.addLayout(self.create_guess_section())
         self.reset_guesses()
-        self.main_layout.addWidget(self.create_msg_box())
-        self.main_layout.addLayout(self.create_result_section())
+        main_layout.addWidget(self.create_msg_box())
+        main_layout.addLayout(self.create_result_section())
         self.reset_results()
-        self.main_layout.addLayout(self.create_button_section())
+        main_layout.addLayout(self.create_button_section())
         # set the central widget
         self.setCentralWidget(self.container)
         self.info_box.setText(("Strict" if p_strict else "Regular") + " Mode")
@@ -127,7 +130,7 @@ class WordleUI(QMainWindow):
         self.input_box.setFocus()
 
     def close(self, /):
-        self.ge.save_word_record()
+        self.ge.save_word_record(self.run_secs)
         super().close()
 
     def create_menu(self):
@@ -145,8 +148,13 @@ class WordleUI(QMainWindow):
         quit_action.setStatusTip("Quit the application")
         quit_action.triggered.connect(self.exit_inquiry)
         game_menu.addAction(new_action)
-        # game_menu.addSeparator()
         game_menu.addAction(quit_action)
+
+        mode_action = QAction("Choose &Mode", self)
+        mode_action.setShortcut("Ctrl+M")
+        mode_action.setStatusTip("Choose STRICT or REGULAR mode")
+        mode_action.triggered.connect(self.mode_inquiry)
+        settings_menu.addAction(mode_action)
 
         instr_action = QAction("&Instructions", self)
         instr_action.setShortcut("Ctrl+I")
@@ -159,17 +167,22 @@ class WordleUI(QMainWindow):
         info_menu.addAction(instr_action)
         info_menu.addAction(copyrite_action)
 
-        mode_action = QAction("Choose &Mode", self)
-        mode_action.setShortcut("Ctrl+M")
-        mode_action.setStatusTip("Choose STRICT or REGULAR mode")
-        mode_action.triggered.connect(self.mode_inquiry)
-        settings_menu.addAction(mode_action)
-
         # see status tips at the bottom of the window
         self.statusBar()
 
     def copyrite(self):
         QMessageBox.information(self, "Copyright", "Copyright (c) 2026 Mark Sattolo <epistemik@gmail.com>")
+
+    def override_handler(self, p_event:QMouseEvent):
+        """Set or unset the override property."""
+        self.lgr.debug(f"QMouseEvent: {p_event}.")
+        if self.override:
+            self.override = False
+            self.lgr.info("Override unset!")
+            return
+        self.override = True
+        self.lgr.info("Override is set!")
+        # call standard behavior if needed
 
     def create_top_section(self):
         """Input, info box, combo boxes, clock section of the UI."""
@@ -184,6 +197,8 @@ class WordleUI(QMainWindow):
         self.input_box.returnPressed.connect(self.process_response)
 
         self.info_box = QLabel()
+        # bind info_box.mousePressEvent function to WordleUI custom method
+        self.info_box.mousePressEvent = self.override_handler
         self.info_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.info_box.setFrameStyle(BOX_FRAME_STYLE)
         self.info_box.setStyleSheet(INFOBOX_STYLESHEET)
@@ -210,20 +225,20 @@ class WordleUI(QMainWindow):
 
         qhb_layout = QHBoxLayout()
         qhb_layout.addWidget(self.input_box)
-        qhb_layout.setStretchFactor(self.input_box, 6 if WORDLE_DEBUG else 1)
+        qhb_layout.setStretchFactor(self.input_box, 8 if WORDLE_DEBUG else 1)
         qhb_layout.addWidget(self.info_box)
-        qhb_layout.setStretchFactor(self.info_box, 4)
+        qhb_layout.setStretchFactor(self.info_box, 8)
         qhb_layout.addWidget(QLabel("word length:"))
         qhb_layout.addWidget(self.wordlen_combobox)
-        qhb_layout.setStretchFactor(self.wordlen_combobox, 2)
+        qhb_layout.setStretchFactor(self.wordlen_combobox, 4)
         qhb_layout.addWidget(QLabel("number of rows:"))
         qhb_layout.addWidget(self.numrows_combobox)
-        qhb_layout.setStretchFactor(self.numrows_combobox, 2)
+        qhb_layout.setStretchFactor(self.numrows_combobox, 4)
         right_spacer = QLabel()
         qhb_layout.addWidget(right_spacer)
-        qhb_layout.setStretchFactor(right_spacer, 1)
+        qhb_layout.setStretchFactor(right_spacer, 2)
         qhb_layout.addWidget(self.clock)
-        qhb_layout.setStretchFactor(self.clock, 2)
+        qhb_layout.setStretchFactor(self.clock, 4)
         return qhb_layout
 
     def set_word_length(self):
@@ -317,10 +332,10 @@ class WordleUI(QMainWindow):
         for i in range(len(ORDERED_LETTERS)):
             self.result_boxes[i].setStyleSheet(RESULT_BASIC_STYLESHEET)
 
-    # prevent input box from stealing focus when cursor over a button
     def eventFilter(self, p_obj, p_event):
         """Override eventFilter to catch QEvent.Type.Enter/Leave."""
         if p_obj == self.instr_btn or p_obj == self.new_word_btn or p_obj == self.exit_btn:
+            # prevent input box from stealing focus when cursor over a button
             if p_event.type() == QEvent.Type.Enter:
                 self.lgr.debug("Button hover.")
                 self.button_hover = True
@@ -383,6 +398,10 @@ class WordleUI(QMainWindow):
         if not self.current_guess:
             self.lgr.info(">> NOT a valid response.")
             return
+        if self.override: # use then unset
+            self.ge.current_words.append(self.current_guess)
+            self.lgr.info(f"Added {self.current_guess} to acceptable words.")
+            self.override = False
         if self.ge.check_guess(self.current_guess, self.active_row):
             self.mark_current_guess()
             self.active_row += 1
@@ -410,7 +429,7 @@ class WordleUI(QMainWindow):
                 guess_idx.remove(i)
                 if i not in self.ge.green_index:
                     self.ge.green_index.append(i)
-                    self.ge.green_index.sort()
+                    # self.ge.green_index.sort()
                     self.lgr.debug(f"green index = {self.ge.green_index}")
                 self.lgr.info(f"Exact @ [{i}] > '{self.current_guess[i]}'; search = '{targ}'; ")
                 targ = targ.replace(self.ge.current_target[i], '', 1)
@@ -421,7 +440,7 @@ class WordleUI(QMainWindow):
                 self.lgr.info(f"Absent @ [{i}] > '{self.current_guess[i]}'")
             else:
                 self.lgr.debug(f"Check occurrence of '{self.current_guess[i]}' at [{i}].")
-        self.lgr.debug(f"guess index = '{guess_idx}'; search = '{targ}'")
+        self.lgr.info(f"guess index = '{guess_idx}'; search = '{targ}'; green index = {self.ge.green_index}")
         # find target letters present in the guess but at a different position
         for j in guess_idx:
             if self.current_guess[j] in targ:
@@ -434,6 +453,7 @@ class WordleUI(QMainWindow):
             else:
                 self.guess_boxes[self.active_row][j].setStyleSheet(GUESS_ABSENT_STYLESHEET)
                 self.lgr.info(f"Absent @ [{j}] > '{self.current_guess[j]}'; search = '{targ}'")
+        self.lgr.info(f"yellow list = {self.ge.yellow_list}")
         # RESULT boxes
         for j in range(len(self.result_boxes)):
             check_letter = self.result_boxes[j].text()
@@ -456,7 +476,7 @@ class WordleUI(QMainWindow):
     def update_clock(self):
         """Update the game clock when the game is active."""
         log_pause = 600 if self.lock_count > 10 else 60
-        locked = check_screen_locked(self.lgr, WORDLE_DEBUG) # pause when the screen is locked
+        locked = check_screen_locked(self.lgr, (WORDLE_DEBUG >= 1)) # pause when the screen is locked
         if not self.active or locked or self.isMinimized() or self.isHidden(): # pause when the game is inactive
             self.pause_secs += 1
             if self.pause_secs % log_pause == 0:
@@ -469,7 +489,8 @@ class WordleUI(QMainWindow):
         self.clock.setText("{:02}:{:02}:{:02}".format(self.run_secs // 3600, self.run_secs % 3600 // 60, self.run_secs % 3600 % 60))
         # make sure keystrokes get to the input box
         if not self.button_hover:
-            self.lgr.debug(f"set focus to input box at {self.run_secs}")
+            if WORDLE_DEBUG > 1:
+                self.lgr.debug(f"set focus to input box at {self.run_secs}")
             self.input_box.setFocus()
 
     def new_word_inquiry(self):
@@ -643,12 +664,13 @@ class WordleGameEngine:
                 return False
         return True
 
-    def save_word_record(self):
+    def save_word_record(self, p_secs:int):
         """Save all important information from the current game."""
         if self.good_guesses and not self.saved:
-            game_record = {"Result":self.outcome, "Target Word":self.current_target,
+            game_record = {"Result":self.outcome, "Mode":("Strict" if self.strict_mode else "Regular"),
+                           "Time":p_secs, "Number of Rows":self.num_rows, "Target Word":self.current_target,
                            "Good Guesses":self.good_guesses, "Bad Guesses":self.bad_guesses}
-            grfile = save_to_json(f"WordleGameRecord_{self.current_target}", game_record)
+            grfile = save_to_json(f"WordleRecord_{self.current_target}", game_record)
             self.saved = True
             self.lgr.info(f"Saved game record as: {grfile}\n\n\n======================================\n")
             return grfile
