@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.11+"
 __created__ = "2026-07-05"
-__updated__ = "2026-08-15"
+__updated__ = "2026-08-17"
 
 import random
 from sys import argv, path
@@ -24,12 +24,12 @@ from mhsLogging import *
 path.append("/home/marksa/git/Python/Games/input")
 from all_words import all_game_words as wordle_words
 
-# DEBUG_TARGET = "FELIS" # test words = MESSY, LEAFY, SILLY, AFFIX, SLIME, FLESH
-# DEBUG_TARGET = "PUPPY" # test words = APPLE, PAPER, PLUMP, TAUPE, UPPER, GUPPY
+# DEBUG_TARGET = "FELIS" # test words = MESSY, LEAFY, SILLY, AFFIX, SLIME, FLESH; Strict = LEAST, FELLA
+# DEBUG_TARGET = "PUPPY" # test words = APPLE, PAPER, PLUMP, TAUPE, UPPER, GUPPY; Strict = POPPY, PEPPY
 # DEBUG_TARGET = "GUPPY" # test words = PLUMP, PAPER, UPPER, UNDUE, PUPPY, BUGGY
-WORDLE_DEBUG = 1
-# DEBUG_TARGET = "GENERA" # SAILOR TRACED MANURE BARREN RENEGE VENEER
-DEBUG_TARGET = "ECZEMA" # SAILOR TEAMED ENAMEL EMPATH
+WORDLE_DEBUG = 0
+# DEBUG_TARGET = "GENERA" # SAILOR TRACED MANURE BARREN RENEGE VENEER; Strict = REAMED, TEARED, MEANER
+DEBUG_TARGET = "ECZEMA" # SAILOR TEAMED MEANER ERMINE ENAMEL EMPATH
 
 ORDERED_LETTERS = "AEIOUYLNRSTCDHMPBFGKWJQVXZ"
 MIN_WORD_LENGTH = 4
@@ -69,13 +69,16 @@ class WordleUI(QMainWindow):
         # pixels: dx from left, dy from top, width, height
         self.setGeometry(600, 110, 680, 800)
 
+        num_rows = MAX_NUM_ROWS if WORDLE_DEBUG else p_rows
+        word_len = len(DEBUG_TARGET) if WORDLE_DEBUG else p_len
+
         self.lgr = log_control.get_logger()
         self.lgr.log(DEFAULT_LOG_LEVEL, f"{self.windowTitle()} start time = {get_current_time()}"
-                                        f"\n\t\t\t\t\t\t >> p_len = {p_len}; p_rows = {p_rows}")
+                                        f"\n\t\t\t\t\t\t >> word len = {word_len}; num rows = {num_rows}")
 
-        self.ge = WordleGameEngine(self.lgr, p_len, p_rows)
+        self.ge = WordleGameEngine(self.lgr, word_len, num_rows)
 
-        if WORDLE_DEBUG:
+        if WORDLE_DEBUG > 1:
             wcolors = QColor.colorNames()
             self.lgr.info("Available colors:")
             for c in wcolors:
@@ -269,13 +272,15 @@ class WordleUI(QMainWindow):
 
         layout_rows = []
         for j in range(self.ge.num_rows):
-            self.lgr.debug(f"Setting guess row #{j}")
+            if WORDLE_DEBUG > 1:
+                self.lgr.debug(f"Setting guess row #{j}")
             layout_rows.append(QHBoxLayout())
             left_spacer = QLabel()
             layout_rows[j].addWidget(left_spacer)
             layout_rows[j].setStretchFactor(left_spacer, 2)
             for k in range(self.ge.word_length):
-                self.lgr.debug(f"Setting guess box #{j}-{k}")
+                if WORDLE_DEBUG > 1:
+                    self.lgr.debug(f"Setting guess box #{j}-{k}")
                 layout_rows[j].addWidget(self.guess_boxes[j][k])
                 layout_rows[j].setStretchFactor(self.guess_boxes[j][k], 1)
             right_spacer = QLabel()
@@ -419,9 +424,8 @@ class WordleUI(QMainWindow):
         """Mark the current guess boxes as green, yellow or grey & the result letters as green or red."""
         # GUESS boxes
         guess_idx = [ _ for _ in range(len(self.current_guess)) ]
-        self.lgr.debug(f"guess index list = {guess_idx}.")
-        targ = self.ge.current_target
-        self.lgr.info(f"current target = '{self.ge.current_target}'")
+        newtarget = self.ge.current_target
+        self.lgr.info(f">> current target = '{self.ge.current_target}'; current guess = '{self.current_guess}'")
         for i in range(self.ge.word_length):
             # EXACT match of letter position in guess and target
             if self.current_guess[i] == self.ge.current_target[i]:
@@ -429,10 +433,10 @@ class WordleUI(QMainWindow):
                 guess_idx.remove(i)
                 if i not in self.ge.green_index:
                     self.ge.green_index.append(i)
-                    # self.ge.green_index.sort()
+                    self.ge.green_index.sort() # required
                     self.lgr.debug(f"green index = {self.ge.green_index}")
-                self.lgr.info(f"Exact @ [{i}] > '{self.current_guess[i]}'; search = '{targ}'; ")
-                targ = targ.replace(self.ge.current_target[i], '', 1)
+                self.lgr.info(f"Exact @ [{i}] > '{self.current_guess[i]}'; new target = '{newtarget}'; ")
+                newtarget = newtarget.replace(self.ge.current_target[i], '', 1)
             # guessed letter is ABSENT from target
             elif self.current_guess[i] not in self.ge.current_target:
                 self.guess_boxes[self.active_row][i].setStyleSheet(GUESS_ABSENT_STYLESHEET)
@@ -440,19 +444,20 @@ class WordleUI(QMainWindow):
                 self.lgr.info(f"Absent @ [{i}] > '{self.current_guess[i]}'")
             else:
                 self.lgr.debug(f"Check occurrence of '{self.current_guess[i]}' at [{i}].")
-        self.lgr.info(f"guess index = '{guess_idx}'; search = '{targ}'; green index = {self.ge.green_index}")
+        self.lgr.info(f"guess index = '{guess_idx}'; new target = '{newtarget}'; green index = {self.ge.green_index}")
         # find target letters present in the guess but at a different position
+        self.ge.yellow_list.clear()
         for j in guess_idx:
-            if self.current_guess[j] in targ:
+            if self.current_guess[j] in newtarget:
                 self.guess_boxes[self.active_row][j].setStyleSheet(GUESS_OCCUR_STYLESHEET)
-                if self.current_guess[j] not in self.ge.yellow_list:
-                    self.ge.yellow_list.append(self.current_guess[j])
-                    self.lgr.debug(f"yellow list = {self.ge.yellow_list}")
-                self.lgr.info(f"Occurrence @ [{j}] > '{self.current_guess[j]}'; search = '{targ}'")
-                targ = targ.replace(self.current_guess[j], '', 1)
+                # if self.current_guess[j] not in self.ge.yellow_list:
+                self.ge.yellow_list.append(self.current_guess[j])
+                self.lgr.debug(f"yellow list = {self.ge.yellow_list}")
+                self.lgr.info(f"Occurrence @ [{j}] > '{self.current_guess[j]}'; new target = '{newtarget}'")
+                newtarget = newtarget.replace(self.current_guess[j], '', 1)
             else:
                 self.guess_boxes[self.active_row][j].setStyleSheet(GUESS_ABSENT_STYLESHEET)
-                self.lgr.info(f"Absent @ [{j}] > '{self.current_guess[j]}'; search = '{targ}'")
+                self.lgr.info(f"Absent @ [{j}] > '{self.current_guess[j]}'; new target = '{newtarget}'")
         self.lgr.info(f"yellow list = {self.ge.yellow_list}")
         # RESULT boxes
         for j in range(len(self.result_boxes)):
@@ -476,7 +481,7 @@ class WordleUI(QMainWindow):
     def update_clock(self):
         """Update the game clock when the game is active."""
         log_pause = 600 if self.lock_count > 10 else 60
-        locked = check_screen_locked(self.lgr, (WORDLE_DEBUG >= 1)) # pause when the screen is locked
+        locked = check_screen_locked(self.lgr, WORDLE_DEBUG) # pause when the screen is locked
         if not self.active or locked or self.isMinimized() or self.isHidden(): # pause when the game is inactive
             self.pause_secs += 1
             if self.pause_secs % log_pause == 0:
@@ -624,7 +629,7 @@ class WordleGameEngine:
         self.current_words = []
         for wd in wordle_words:
             if len(wd) == self.word_length:
-                self.current_words.append(wd)
+                self.current_words.append(get_clean_word(wd))
 
     def check_guess(self, p_resp:str, p_current_row:int) -> bool:
         """Check for a valid response."""
@@ -651,17 +656,21 @@ class WordleGameEngine:
 
     def checkguess_strict(self, p_resp:str) -> bool:
         """Make sure that previous green and yellow responses are carried over."""
-        self.lgr.debug(f"check response '{p_resp}' in STRICT mode.")
+        self.lgr.debug(f"response = '{p_resp}'; green index = {self.green_index}")
+        yl_resp = p_resp
         for gi in self.green_index:
             if p_resp[gi] != self.current_target[gi]:
                 self.info_mesg = f"Missing green '{self.current_target[gi]}' at position {gi+1}."
                 self.lgr.info(self.info_mesg)
                 return False
+            yl_resp = yl_resp.replace(p_resp[gi], '', 1)
+        self.lgr.debug(f"yellow list = {self.yellow_list}")
         for yl in self.yellow_list:
-            if yl not in p_resp:
+            if yl not in yl_resp:
                 self.info_mesg = f"Missing yellow '{yl}'."
                 self.lgr.info(self.info_mesg)
                 return False
+            yl_resp = yl_resp.replace(yl, '', 1)
         return True
 
     def save_word_record(self, p_secs:int):
@@ -678,7 +687,9 @@ class WordleGameEngine:
 # END class WordleGameEngine
 
 
-log_control = MhsLogger(WordleUI.__name__, con_level = DEFAULT_LOG_LEVEL)
+wordle_log_level = logging.DEBUG if WORDLE_DEBUG else logging.INFO
+log_control = MhsLogger(WordleUI.__name__, con_level = wordle_log_level)
+log_control.debug(f"WORDLE_DEBUG = {WORDLE_DEBUG}")
 
 def wordle_main():
     usage_text = f"Usage: python3 {get_filename(argv[0])} [word_length:int] [num_rows:int]\n"
