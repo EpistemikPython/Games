@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.11+"
 __created__ = "2025-08-18"
-__updated__ = "2026-08-10"
+__updated__ = "2026-08-20"
 
 from enum import IntEnum
 from sys import argv, path
@@ -24,9 +24,9 @@ from mhsUtils import *
 from mhsLogging import *
 from enum import Enum
 path.append("/home/marksa/git/Python/Games/input")
-from all_words import all_game_words as sb_words
+from all_words import all_game_words
 
-SB_DEBUG = False
+SB_DEBUG = 0
 
 MIN_WORD_LENGTH = 4
 MAX_WORD_LENGTH = 21
@@ -128,11 +128,11 @@ def check_screen_locked(lgr:logging.Logger=None) -> bool:
 
 
 # noinspection PyAttributeOutsideInit
-class SpellingBeeUI(QMainWindow):
-    """UI to play the SpellingBee game."""
+class SpellingbeeUI(QMainWindow):
+    """UI to play the Spellingbee game."""
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("My SpellingBee Game")
+        self.setWindowTitle("My SpellingBee App")
         # pixels: dx from left, dx from top, width, height
         self.setGeometry(520, 64, 680, 960)
 
@@ -518,19 +518,19 @@ class SpellingBeeUI(QMainWindow):
         if current_level[:4] != self.status_info.text().lstrip()[:4]:
             self.lgr.info(f"CHANGING level to '{current_level}'")
             self.status_info.setText(current_level + '!')
-# END class SpellingBeeUI
+# END class SpellingbeeUI
 
 
 # noinspection PyAttributeOutsideInit
 class SpellingbeeGameEngine:
-    """The SpellingBee game internal data and procedures."""
+    """The Spellingbee game internal data and procedures."""
     def __init__(self, p_lgr:MhsLogger, p_letters:str=""):
         self.lgr = p_lgr
         # TODO: check and use specified letters
         if p_letters and len(p_letters) == PANGRAM_LENGTH:
             # first letter = required; remaining 6 letters = outers
             pass
-        self.lgr.info(f"Initialized Game Engine >> total number of words = {len(sb_words)}")
+        self.lgr.info(f"Initialized Game Engine >> total number of words = {len(all_game_words)}")
 
     def start(self):
         self.current_guess = ""
@@ -624,13 +624,15 @@ class SpellingbeeGameEngine:
     def check_plurals(self, p_word:str) -> bool:
         if p_word in self.answer_list:
             return False
-        if ( (p_word[-1] == 'S' and p_word[-2] != 'S' and p_word[:-1] in sb_words)
-              or (p_word[-2:] == "ES" and p_word[:-2] in sb_words) ):
+        if ( (p_word[-1] == 'S' and p_word[-2] != 'S' and p_word[:-1] in self.answer_list)
+              or (p_word[-2:] == "ES" and p_word[:-2] in self.answer_list) ):
             return True
         return False
 
     def load_pangrams(self):
-        for it in sb_words:
+        if not all_game_words:
+            raise Exception("NO word list!")
+        for it in all_game_words:
             result = []
             item = get_clean_word(it)
             # don't use ING or ED forms
@@ -653,10 +655,10 @@ class SpellingbeeGameEngine:
         return PointLevel.Beginning.name
 
     def make_answer_list(self):
-        if not sb_words:
-            self.lgr.warning("Trying to find answers but NO word list!")
-            return
-        for item in sb_words:
+        if not all_game_words:
+            raise Exception("NO word list!")
+        for it in all_game_words:
+            item = get_clean_word(it)
             if self.check_letters(item):
                 self.answer_list.append(item)
         self.answer_list.sort()
@@ -669,8 +671,7 @@ class SpellingbeeGameEngine:
 
     def get_max_points(self) -> int:
         if not self.answer_list:
-            self.lgr.warning("Trying to get max points but NO answer list!")
-            return 0
+            raise Exception("NO answer list!")
         if self.maximum_points > 0:
             return self.maximum_points
         point_total = 0
@@ -691,7 +692,9 @@ class SpellingbeeGameEngine:
 # END class SpellingbeeGameEngine
 
 
-log_control = MhsLogger(SpellingBeeUI.__name__, con_level = DEFAULT_LOG_LEVEL)
+sb_log_level = logging.DEBUG if SB_DEBUG else logging.INFO
+log_control = MhsLogger(SpellingbeeUI.__name__, con_level = sb_log_level)
+log_control.debug(f"SB_DEBUG = {SB_DEBUG}")
 
 if __name__ == "__main__":
     if len(argv) > 1:
@@ -703,7 +706,7 @@ if __name__ == "__main__":
     code = 0
     try:
         app = QApplication(argv)
-        dialog = SpellingBeeUI()
+        dialog = SpellingbeeUI()
         app.exec()
     except KeyboardInterrupt as mki:
         log_control.exception(mki)
