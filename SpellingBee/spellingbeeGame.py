@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.11+"
 __created__ = "2025-08-18"
-__updated__ = "2026-08-20"
+__updated__ = "2026-08-22"
 
 from enum import IntEnum
 from sys import argv, path
@@ -27,6 +27,7 @@ path.append("/home/marksa/git/Python/Games/input")
 from all_words import all_game_words
 
 SB_DEBUG = 0
+DEBUG_PANGRAM = "MANICHAEAN"
 
 MIN_WORD_LENGTH = 4
 MAX_WORD_LENGTH = 21
@@ -513,7 +514,7 @@ class SpellingbeeUI(QMainWindow):
         self.response_box.setText("")
         # update display of points, count and level
         self.point_display.setText(str(self.ge.point_total))
-        self.num_valid_display.setText(str(self.ge.num_good_guesses))
+        self.num_valid_display.setText(str(len(self.ge.good_guesses)))
         current_level = self.ge.get_current_level()
         if current_level[:4] != self.status_info.text().lstrip()[:4]:
             self.lgr.info(f"CHANGING level to '{current_level}'")
@@ -533,69 +534,50 @@ class SpellingbeeGameEngine:
         self.lgr.info(f"Initialized Game Engine >> total number of words = {len(all_game_words)}")
 
     def start(self):
-        self.current_guess = ""
-        self.bad_letter = ''
         self.total_num_answers = 0
-        self.num_good_guesses = 0
         self.point_total = 0
         self.maximum_points = 0
         self.current_points = 0
         self.saved = False
         self.answer_list = []
-        self.pangrams = []
         self.pangram_guesses = []
         self.good_guesses = []
         self.bad_word_guesses = []
         self.bad_letter_guesses = []
         self.surround_letters = []
-        self.load_pangrams()
-        self.lgr.info(f"number of pangrams = {len(self.pangrams)}")
-        self.current_target = self.pangrams[random.randrange(0, len(self.pangrams))]
+        self.current_target = self.get_pangram()
         self.lgr.info(f"current target word = {self.current_target}")
         self.required_letter = self.current_target[random.randrange(0, len(self.current_target))]
         self.lgr.info(f"required letter = {self.required_letter}")
         for lett in self.current_target:
-            if lett not in self.required_letter and lett not in self.surround_letters:
+            if lett != self.required_letter and lett not in self.surround_letters:
                 self.surround_letters.append(lett)
         self.lgr.info(f"outer letters = {self.surround_letters}")
         self.make_answer_list()
         self.get_max_points()
         self.lgr.info("Started a Game.")
 
-    def save_record(self):
-        # save all important information from this game
-        if not self.saved and self.good_guesses:
-            self.good_guesses.sort()
-            game_record = {"TARGET WORD":self.current_target, "REQUIRED LETTER":self.required_letter, "POINTS EARNED":self.point_total,
-                           "MAX POSSIBLE POINTS":self.maximum_points, "FINAL RATING":self.get_current_level(),
-                           "PANGRAM GUESSES":self.pangram_guesses, "GOOD GUESSES":self.good_guesses,
-                           "MISSED ANSWERS":self.missed_answers(), "BAD LETTER GUESSES":self.bad_letter_guesses,
-                           "BAD WORD GUESSES":self.bad_word_guesses, "COMPLETE ANSWER LIST":self.answer_list}
-            grfile = save_to_json(f"GameRecord_{self.required_letter}_{self.current_target}", game_record)
-            self.lgr.info(f"Saved game record as: {grfile}")
-            self.saved = True
-
     def check_guess(self, p_resp:str) -> bool:
         """Check all letters for a good response and also see if a pangram."""
         self.lgr.debug(f"check response '{p_resp}':")
-        self.current_guess = get_clean_word(p_resp)
-        if self.current_guess in self.answer_list:
-            self.lgr.info(f"{self.current_guess} is a GOOD guess!")
-            self.good_guesses.append(self.current_guess)
+        current_guess = get_clean_word(p_resp)
+        if current_guess in self.answer_list:
+            self.lgr.info(f"{current_guess} is a GOOD guess!")
+            self.good_guesses.append(current_guess)
             self.current_points = (1 if len(p_resp) == MIN_WORD_LENGTH else len(p_resp))
-            self.num_good_guesses += 1
-            if self.check_pangram(self.current_guess):
-                self.lgr.info(f"{self.current_guess} is a PANGRAM!")
-                self.pangram_guesses.append(self.current_guess)
+            # self.num_good_guesses += 1
+            if self.check_pangram(current_guess):
+                self.lgr.info(f"{current_guess} is a PANGRAM!")
+                self.pangram_guesses.append(current_guess)
                 self.current_points += len(p_resp) # PANGRAM BONUS
             self.point_total += self.current_points
             return True
 
-        self.lgr.info(f"{self.current_guess} is a BAD guess!")
-        if not self.check_letters(self.current_guess):
-            self.bad_letter_guesses.append(self.current_guess)
+        self.lgr.info(f"{current_guess} is a BAD guess!")
+        if not self.check_letters(current_guess):
+            self.bad_letter_guesses.append(current_guess)
             return False
-        self.bad_word_guesses.append(self.current_guess)
+        self.bad_word_guesses.append(current_guess)
         return False
 
     def check_bad_letter(self, p_word:str) -> bool:
@@ -629,12 +611,19 @@ class SpellingbeeGameEngine:
             return True
         return False
 
-    def load_pangrams(self):
+    def get_current_level(self) -> str:
+        current_point_percent = self.point_total / self.maximum_points
+        for item in reversed(PointLevel):
+            if current_point_percent >= item.value:
+                return item.name
+        return PointLevel.Beginning.name
+
+    def get_pangram(self) -> str:
         if not all_game_words:
             raise Exception("NO word list!")
-        for it in all_game_words:
-            result = []
-            item = get_clean_word(it)
+        result = []
+        while not result:
+            item = get_clean_word(all_game_words[random.randrange(0, len(all_game_words))])
             # don't use ING or ED forms
             if item[-3:] == "ING" or item[-2:] == "ED":
                 continue
@@ -642,17 +631,10 @@ class SpellingbeeGameEngine:
                 if lett not in result:
                     result.append(lett)
             if len(result) == PANGRAM_LENGTH:
-                self.pangrams.append(item)
-        if SB_DEBUG:
-            fname = save_to_json("pangrams", self.pangrams)
-            self.lgr.info(f"Saved file: {fname}.")
-
-    def get_current_level(self) -> str:
-        current_point_percent = self.point_total / self.maximum_points
-        for item in reversed(PointLevel):
-            if current_point_percent >= item.value:
-                return item.name
-        return PointLevel.Beginning.name
+                return item
+            result.clear()
+        self.lgr.warning("NO pangrams!?")
+        return DEBUG_PANGRAM
 
     def make_answer_list(self):
         if not all_game_words:
@@ -689,6 +671,19 @@ class SpellingbeeGameEngine:
             if word not in self.good_guesses:
                 results.append(word)
         return results
+
+    def save_record(self):
+        # save all important information from this game
+        if not self.saved and self.good_guesses:
+            self.good_guesses.sort()
+            game_record = {"TARGET WORD":self.current_target, "REQUIRED LETTER":self.required_letter, "POINTS EARNED":self.point_total,
+                           "MAX POSSIBLE POINTS":self.maximum_points, "FINAL RATING":self.get_current_level(),
+                           "PANGRAM GUESSES":self.pangram_guesses, "GOOD GUESSES":self.good_guesses,
+                           "MISSED ANSWERS":self.missed_answers(), "BAD LETTER GUESSES":self.bad_letter_guesses,
+                           "BAD WORD GUESSES":self.bad_word_guesses, "COMPLETE ANSWER LIST":self.answer_list}
+            grfile = save_to_json(f"GameRecord_{self.required_letter}_{self.current_target}", game_record)
+            self.lgr.info(f"Saved game record as: {grfile}")
+            self.saved = True
 # END class SpellingbeeGameEngine
 
 
