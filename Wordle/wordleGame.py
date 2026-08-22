@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.11+"
 __created__ = "2026-07-05"
-__updated__ = "2026-08-17"
+__updated__ = "2026-08-18"
 
 import random
 from sys import argv, path
@@ -22,12 +22,12 @@ path.append("/home/marksa/git/Python/utils")
 from mhsUtils import *
 from mhsLogging import *
 path.append("/home/marksa/git/Python/Games/input")
-from all_words import all_game_words as wordle_words
+from all_words import all_game_words
 
+WORDLE_DEBUG = 0
 # DEBUG_TARGET = "FELIS" # test words = MESSY, LEAFY, SILLY, AFFIX, SLIME, FLESH; Strict = LEAST, FELLA
 # DEBUG_TARGET = "PUPPY" # test words = APPLE, PAPER, PLUMP, TAUPE, UPPER, GUPPY; Strict = POPPY, PEPPY
 # DEBUG_TARGET = "GUPPY" # test words = PLUMP, PAPER, UPPER, UNDUE, PUPPY, BUGGY
-WORDLE_DEBUG = 0
 # DEBUG_TARGET = "GENERA" # SAILOR TRACED MANURE BARREN RENEGE VENEER; Strict = REAMED, TEARED, MEANER
 DEBUG_TARGET = "ECZEMA" # SAILOR TEAMED MEANER ERMINE ENAMEL EMPATH
 
@@ -69,8 +69,8 @@ class WordleUI(QMainWindow):
         # pixels: dx from left, dy from top, width, height
         self.setGeometry(600, 110, 680, 800)
 
-        num_rows = MAX_NUM_ROWS if WORDLE_DEBUG else p_rows
         word_len = len(DEBUG_TARGET) if WORDLE_DEBUG else p_len
+        num_rows = MAX_NUM_ROWS if WORDLE_DEBUG else p_rows
 
         self.lgr = log_control.get_logger()
         self.lgr.log(DEFAULT_LOG_LEVEL, f"{self.windowTitle()} start time = {get_current_time()}"
@@ -113,7 +113,7 @@ class WordleUI(QMainWindow):
         # remove the old container widget
         if self.container:
             self.container.deleteLater()
-        # build a brand new container widget
+        # build a new container
         self.container = QWidget()
         main_layout = QVBoxLayout(self.container)
         # add elements to the layout
@@ -320,17 +320,17 @@ class WordleUI(QMainWindow):
             self.result_boxes.append(self.create_result_box(p_letters[i]))
         self.lgr.debug(f"Have {len(self.result_boxes)} result boxes.")
 
-        self.vowel_row = QHBoxLayout()
+        vowel_row = QHBoxLayout()
         for j in range(6):
-            self.vowel_row.addWidget(self.result_boxes[j])
-        qvb_layout.addItem(self.vowel_row)
+            vowel_row.addWidget(self.result_boxes[j])
+        qvb_layout.addItem(vowel_row)
 
-        self.consonant_rows = []
+        consonant_rows = []
         for k in range(4):
-            self.consonant_rows.append(QHBoxLayout())
+            consonant_rows.append(QHBoxLayout())
             for l in range(1,6):
-                self.consonant_rows[k].addWidget(self.result_boxes[5*(k+1)+l])
-            qvb_layout.addItem(self.consonant_rows[k])
+                consonant_rows[k].addWidget(self.result_boxes[5*(k+1)+l])
+            qvb_layout.addItem(consonant_rows[k])
         return qvb_layout
 
     def reset_results(self):
@@ -391,7 +391,7 @@ class WordleUI(QMainWindow):
         if p_resp:
             self.current_guess = get_clean_word(p_resp)
             current_box = 0
-            for letter in p_resp:
+            for letter in self.current_guess:
                 self.guess_boxes[self.active_row][current_box].setText(letter)
                 current_box += 1
 
@@ -450,7 +450,6 @@ class WordleUI(QMainWindow):
         for j in guess_idx:
             if self.current_guess[j] in newtarget:
                 self.guess_boxes[self.active_row][j].setStyleSheet(GUESS_OCCUR_STYLESHEET)
-                # if self.current_guess[j] not in self.ge.yellow_list:
                 self.ge.yellow_list.append(self.current_guess[j])
                 self.lgr.debug(f"yellow list = {self.ge.yellow_list}")
                 self.lgr.info(f"Occurrence @ [{j}] > '{self.current_guess[j]}'; new target = '{newtarget}'")
@@ -594,8 +593,6 @@ class WordleGameEngine:
 
     def start(self, p_strict:bool=False):
         """Set starting values for a new game."""
-        self.previous_guesses = []
-        self.num_guesses = 0
         self.good_guesses = []
         self.bad_guesses = []
         self.green_index = []
@@ -627,11 +624,11 @@ class WordleGameEngine:
     def get_current_words(self):
         """Get all words that match the current word length."""
         self.current_words = []
-        for wd in wordle_words:
+        for wd in all_game_words:
             if len(wd) == self.word_length:
                 self.current_words.append(get_clean_word(wd))
 
-    def check_guess(self, p_resp:str, p_current_row:int) -> bool:
+    def check_guess(self, p_resp:str, p_row:int) -> bool:
         """Check for a valid response."""
         self.lgr.debug(f"check response '{p_resp}'.")
         if p_resp == self.current_target:
@@ -639,18 +636,16 @@ class WordleGameEngine:
             result = True
         elif p_resp not in self.current_words:
             result = False
-        elif p_current_row > 0 and self.strict_mode:
+        elif p_row > 0 and self.strict_mode:
             result = self.checkguess_strict(p_resp)
         else:
             self.lgr.info(f"'{p_resp}' is a valid word.")
             result = True
         if result:
-            self.previous_guesses.append(p_resp)
-            self.num_guesses += 1
             self.good_guesses.append(p_resp)
             return True
         self.bad_guesses.append(p_resp)
-        if check_plural(p_resp, wordle_words):
+        if check_plural(p_resp, self.current_words):
             self.info_mesg = "Most simple plurals are just IGNORED..."
         return False
 
@@ -673,7 +668,7 @@ class WordleGameEngine:
             yl_resp = yl_resp.replace(yl, '', 1)
         return True
 
-    def save_word_record(self, p_secs:int):
+    def save_word_record(self, p_secs:int) -> str:
         """Save all important information from the current game."""
         if self.good_guesses and not self.saved:
             game_record = {"Result":self.outcome, "Mode":("Strict" if self.strict_mode else "Regular"),
