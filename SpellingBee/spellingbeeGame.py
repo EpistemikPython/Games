@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.11+"
 __created__ = "2025-08-18"
-__updated__ = "2026-08-22"
+__updated__ = "2026-08-25"
 
 from enum import IntEnum
 from sys import argv, path
@@ -74,28 +74,14 @@ INFO_TEXT = ("   How to Play the Game:\n"
              "8) Pangrams are words that use ALL seven letters -- and earn DOUBLE the regular points!\n\n"
              "9) Exit the game when you are ready and your game information will be saved to a JSON file.")
 
-def display_info():
+def display_info(p_font:str = SMALL_FONT, p_text:str = INFO_TEXT):
     infobox = QMessageBox()
     infobox.setIcon(QMessageBox.Icon.Information)
-    infobox.setStyleSheet(SMALL_FONT)
-    infobox.setText(INFO_TEXT)
+    infobox.setStyleSheet(p_font)
+    infobox.setText(p_text)
     infobox.setMinimumWidth(1200) # DOES NOTHING... ?!
     infobox.setFixedWidth(960) # DOES NOTHING... ?!
     infobox.exec()
-
-def confirm_exit():
-    confirm_box = QMessageBox()
-    confirm_box.setIcon(QMessageBox.Icon.Question)
-    confirm_box.setStyleSheet("font-size: 16pt")
-    confirm_box.setText("    Are you SURE you want to EXIT the game?    ")
-    cancel_button = confirm_box.addButton("No! >> Continue the game...", QMessageBox.ButtonRole.ActionRole)
-    cancel_button.setStyleSheet("background: chartreuse")
-    newgame_button = confirm_box.addButton("Yes >> START a NEW game!", QMessageBox.ButtonRole.ActionRole)
-    newgame_button.setStyleSheet("color: green; background: MediumVioletRed")
-    proceed_button = confirm_box.addButton("Yes >> EXIT the game.", QMessageBox.ButtonRole.ActionRole)
-    proceed_button.setStyleSheet("color: yellow; background: purple")
-    confirm_box.setDefaultButton(cancel_button)
-    return confirm_box, proceed_button, cancel_button, newgame_button
 
 def set_label_letter_style(qlabel:QLabel, font_size:int = SbFontSize.Large):
     qlabel.setStyleSheet(f"{FONT_BOLD} color: blue; background: white; font-size: {font_size}pt")
@@ -105,29 +91,6 @@ def set_label_letter_style(qlabel:QLabel, font_size:int = SbFontSize.Large):
 def set_label_bold(qlabel:QLabel, font_size:int = SbFontSize.Medium):
     qlabel.setStyleSheet(f"{FONT_BOLD} font-size: {font_size}pt")
 
-def check_screen_locked(lgr:logging.Logger=None) -> bool:
-    """See if a screensaver is active."""
-    try:
-        output = subprocess.check_output(["mate-screensaver-command", "-q"]).decode()
-        if output:
-            if lgr and SB_DEBUG:
-                lgr.debug(f"Mate screensaver output: {output}")
-            return "is active" in output
-    except FileNotFoundError:
-        if lgr:
-            lgr.warning("Mate screensaver NOT found!")
-    try:
-        output = subprocess.check_output(["gnome-screensaver-command", "-q"]).decode()
-        if output:
-            if lgr and SB_DEBUG:
-                lgr.debug(f"Gnome screensaver output: {output}")
-            return "is active" in output
-    except FileNotFoundError:
-        if lgr and SB_DEBUG:
-            lgr.warning("Gnome screensaver NOT found!")
-    return False
-
-
 # noinspection PyAttributeOutsideInit
 class SpellingbeeUI(QMainWindow):
     """UI to play the Spellingbee game."""
@@ -135,7 +98,7 @@ class SpellingbeeUI(QMainWindow):
         super().__init__()
         self.setWindowTitle("My SpellingBee App")
         # pixels: dx from left, dx from top, width, height
-        self.setGeometry(520, 64, 680, 960)
+        self.setGeometry(520, 64, 720, 960)
 
         self.lgr = log_control.get_logger()
         self.lgr.log(DEFAULT_LOG_LEVEL, f"{self.windowTitle()} runtime = {get_current_time()}")
@@ -386,7 +349,7 @@ class SpellingbeeUI(QMainWindow):
 
     def exit_inquiry(self):
         """Confirm that the user wants to exit the current game."""
-        confirm_box, initiate_exit_button, continue_game_button, new_game_button = confirm_exit()
+        confirm_box, initiate_exit_button, continue_game_button, new_game_button = self.confirm_exit()
         confirm_box.exec()
         if confirm_box.clickedButton() == initiate_exit_button:
             self.lgr.info("Proceed to EXIT!")
@@ -398,6 +361,21 @@ class SpellingbeeUI(QMainWindow):
             self.ge.save_record()
             # new game
             self.reset()
+
+    @staticmethod
+    def confirm_exit():
+        confirm_box = QMessageBox()
+        confirm_box.setIcon(QMessageBox.Icon.Question)
+        confirm_box.setStyleSheet("font-size: 16pt")
+        confirm_box.setText("    Are you SURE you want to EXIT the game?    ")
+        cancel_button = confirm_box.addButton("No! >> Continue the game...", QMessageBox.ButtonRole.ActionRole)
+        cancel_button.setStyleSheet("background: chartreuse")
+        newgame_button = confirm_box.addButton("Yes >> START a NEW game!", QMessageBox.ButtonRole.ActionRole)
+        newgame_button.setStyleSheet("color: green; background: MediumVioletRed")
+        proceed_button = confirm_box.addButton("Yes >> EXIT the game.", QMessageBox.ButtonRole.ActionRole)
+        proceed_button.setStyleSheet("color: yellow; background: purple")
+        confirm_box.setDefaultButton(cancel_button)
+        return confirm_box, proceed_button, cancel_button, newgame_button
 
     def scramble_letters(self):
         """Change the placement of the surround letters."""
@@ -494,7 +472,7 @@ class SpellingbeeUI(QMainWindow):
                 self.invalid_response_box.setFontItalic(False)
             self.lgr.debug(f"previous font weight = {self.invalid_response_box.fontWeight()}")
             self.invalid_response_box.setFontWeight(QFont.Weight.Bold)
-            self.invalid_response_box.append("NOT words:")
+            self.invalid_response_box.append("NOT accepted:")
             self.invalid_response_box.setFontWeight(QFont.Weight.Normal)
             str_resp = (str(self.invalid_responses)).replace(" ", "   ")
             cleaned_text = str_resp.translate(cleaner)
@@ -681,7 +659,7 @@ class SpellingbeeGameEngine:
                            "PANGRAM GUESSES":self.pangram_guesses, "GOOD GUESSES":self.good_guesses,
                            "MISSED ANSWERS":self.missed_answers(), "BAD LETTER GUESSES":self.bad_letter_guesses,
                            "BAD WORD GUESSES":self.bad_word_guesses, "COMPLETE ANSWER LIST":self.answer_list}
-            grfile = save_to_json(f"GameRecord_{self.required_letter}_{self.current_target}", game_record)
+            grfile = save_to_json(f"SpellbeeRecord_{self.required_letter}_{self.current_target}", game_record)
             self.lgr.info(f"Saved game record as: {grfile}")
             self.saved = True
 # END class SpellingbeeGameEngine
@@ -693,7 +671,7 @@ log_control.debug(f"SB_DEBUG = {SB_DEBUG}")
 
 if __name__ == "__main__":
     if len(argv) > 1:
-        print(f"Usage: python3 {get_filename(argv[0])}\nLaunch the SpellingBee game UI.")
+        print(f"Usage: python3 {get_filename(argv[0])}\nLaunch the SpellingBee App.")
         log_control.debug("Usage instructions.")
         exit(0)
     dialog = None
