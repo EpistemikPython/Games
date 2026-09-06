@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.11+"
 __created__ = "2026-07-05"
-__updated__ = "2026-08-18"
+__updated__ = "2026-08-25"
 
 import random
 from sys import argv, path
@@ -67,7 +67,7 @@ class WordleUI(QMainWindow):
         super().__init__()
         self.setWindowTitle("My Wordle App")
         # pixels: dx from left, dy from top, width, height
-        self.setGeometry(600, 110, 680, 800)
+        self.setGeometry(600, 110, 720, 840)
 
         word_len = len(DEBUG_TARGET) if WORDLE_DEBUG else p_len
         num_rows = MAX_NUM_ROWS if WORDLE_DEBUG else p_rows
@@ -96,7 +96,7 @@ class WordleUI(QMainWindow):
 
     def reset(self, p_strict:bool=False):
         """Reset all the fields needed to start a new game."""
-        self.ge.save_word_record(self.run_secs)
+        self.ge.save_record(self.run_secs)
         self.lgr.info("Starting a NEW Game!")
         self.ge.start(p_strict)
         self.active = True
@@ -133,7 +133,7 @@ class WordleUI(QMainWindow):
         self.input_box.setFocus()
 
     def close(self, /):
-        self.ge.save_word_record(self.run_secs)
+        self.ge.save_record(self.run_secs)
         super().close()
 
     def create_menu(self):
@@ -405,7 +405,7 @@ class WordleUI(QMainWindow):
             return
         if self.override: # use then unset
             self.ge.current_words.append(self.current_guess)
-            self.lgr.info(f"Added {self.current_guess} to acceptable words.")
+            self.lgr.info(f"Added '{self.current_guess}' to acceptable words.")
             self.override = False
         if self.ge.check_guess(self.current_guess, self.active_row):
             self.mark_current_guess()
@@ -427,7 +427,7 @@ class WordleUI(QMainWindow):
         newtarget = self.ge.current_target
         self.lgr.info(f">> current target = '{self.ge.current_target}'; current guess = '{self.current_guess}'")
         for i in range(self.ge.word_length):
-            # EXACT match of letter position in guess and target
+            # EXACT MATCH of letter position in guess and target
             if self.current_guess[i] == self.ge.current_target[i]:
                 self.guess_boxes[self.active_row][i].setStyleSheet(GUESS_EXACT_STYLESHEET)
                 guess_idx.remove(i)
@@ -445,7 +445,7 @@ class WordleUI(QMainWindow):
             else:
                 self.lgr.debug(f"Check occurrence of '{self.current_guess[i]}' at [{i}].")
         self.lgr.info(f"guess index = '{guess_idx}'; new target = '{newtarget}'; green index = {self.ge.green_index}")
-        # find target letters present in the guess but at a different position
+        # find target letters PRESENT in the guess but at a DIFFERENT POSITION
         self.ge.yellow_list.clear()
         for j in guess_idx:
             if self.current_guess[j] in newtarget:
@@ -459,13 +459,13 @@ class WordleUI(QMainWindow):
                 self.lgr.info(f"Absent @ [{j}] > '{self.current_guess[j]}'; new target = '{newtarget}'")
         self.lgr.info(f"yellow list = {self.ge.yellow_list}")
         # RESULT boxes
-        for j in range(len(self.result_boxes)):
-            check_letter = self.result_boxes[j].text()
+        for k in range(len(self.result_boxes)):
+            check_letter = self.result_boxes[k].text()
             if check_letter in self.current_guess:
                 if check_letter in self.ge.current_target:
-                    self.result_boxes[j].setStyleSheet(RESULT_OCCUR_STYLESHEET)
+                    self.result_boxes[k].setStyleSheet(RESULT_OCCUR_STYLESHEET)
                 else:
-                    self.result_boxes[j].setStyleSheet(RESULT_ABSENT_STYLESHEET)
+                    self.result_boxes[k].setStyleSheet(RESULT_ABSENT_STYLESHEET)
         if self.current_guess == self.ge.current_target:
             self.success(True)
 
@@ -668,7 +668,7 @@ class WordleGameEngine:
             yl_resp = yl_resp.replace(yl, '', 1)
         return True
 
-    def save_word_record(self, p_secs:int) -> str:
+    def save_record(self, p_secs:int) -> str:
         """Save all important information from the current game."""
         if self.good_guesses and not self.saved:
             game_record = {"Result":self.outcome, "Mode":("Strict" if self.strict_mode else "Regular"),
