@@ -10,9 +10,10 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.11+"
 __created__ = "2026-07-05"
-__updated__ = "2026-08-25"
+__updated__ = "2026-09-28"
 
 import random
+from argparse import ArgumentParser
 from sys import argv, path
 from PySide6.QtCore import Qt, QTimer, QEvent
 from PySide6.QtGui import QAction, QColor, QMouseEvent
@@ -37,7 +38,7 @@ DEFAULT_WORD_LENGTH = 5
 MAX_WORD_LENGTH = 13
 MIN_NUM_ROWS = 3
 DEFAULT_NUM_ROWS = 6
-MAX_NUM_ROWS = 10
+MAX_NUM_ROWS = 9
 
 MEDIUM_FONT_SIZE = 16
 SMALL_FONT  = "font-size: 12pt;"
@@ -63,7 +64,7 @@ INPUTBOX_STYLESHEET = f"{SMALL_FONT} color: red; background: white" if WORDLE_DE
 # noinspection PyAttributeOutsideInit
 class WordleUI(QMainWindow):
     """UI to play the Wordle game."""
-    def __init__(self, p_len:int=DEFAULT_WORD_LENGTH, p_rows:int=DEFAULT_NUM_ROWS):
+    def __init__(self, p_len:int=DEFAULT_WORD_LENGTH, p_rows:int=DEFAULT_NUM_ROWS, p_strict:bool=False):
         super().__init__()
         self.setWindowTitle("My Wordle App")
         # pixels: dx from left, dy from top, width, height
@@ -91,7 +92,7 @@ class WordleUI(QMainWindow):
 
         self.create_menu()
         self.container = None
-        self.reset()
+        self.reset(p_strict)
         self.show()
 
     def reset(self, p_strict:bool=False):
@@ -682,38 +683,38 @@ class WordleGameEngine:
 # END class WordleGameEngine
 
 
+def set_args():
+    arg_parser = ArgumentParser(description = "run the Wordle app", prog = f"python3 {get_filename(argv[0])}")
+    # optional arguments
+    arg_parser.add_argument('-s', '--strict', action = "store_true", default = False,
+                            help = "start in STRICT mode")
+    arg_parser.add_argument('-l', '--numletters', type = int, default = DEFAULT_WORD_LENGTH,
+                            help = f"number of letters in the secret word; DEFAULT = '{DEFAULT_WORD_LENGTH}'")
+    arg_parser.add_argument('-r', '--numrows', type = int, default = DEFAULT_NUM_ROWS,
+                            help = f"number of rows (chances to guess) in the app; DEFAULT = '{DEFAULT_NUM_ROWS}'")
+    return arg_parser
+
+def get_args(argl:list):
+    args = set_args().parse_args(argl)
+    numletts = args.numletters if MIN_WORD_LENGTH <= args.numletters <= MAX_WORD_LENGTH else DEFAULT_WORD_LENGTH
+    log_control.info(f"word length = '{numletts}'")
+    numrows = args.numrows if MIN_NUM_ROWS <= args.numrows <= MAX_NUM_ROWS else DEFAULT_NUM_ROWS
+    log_control.info(f"number or rows = '{numrows}'")
+    return args.strict, numletts, numrows
+
+
 wordle_log_level = logging.DEBUG if WORDLE_DEBUG else logging.INFO
 log_control = MhsLogger(WordleUI.__name__, con_level = wordle_log_level)
 log_control.debug(f"WORDLE_DEBUG = {WORDLE_DEBUG}")
 
 def wordle_main():
-    usage_text = f"Usage: python3 {get_filename(argv[0])} [word_length:int] [num_rows:int]\n"
-    if len(argv) > 3:
-        print(usage_text)
-        log_control.debug("Usage instructions.")
-        exit(0)
     window = None
     app = None
     code = 0
     try:
         app = QApplication(argv)
-        if len(argv) > 2:
-            if not argv[1].isdigit() or not argv[2].isdigit():
-                print(usage_text)
-                log_control.debug("Invalid arguments.")
-                raise ValueError("Invalid arguments.")
-            window = WordleUI(int(argv[1]), int(argv[2]))
-            log_control.info(f"argv[1]: {argv[1]}, argv[2]: {argv[2]}")
-        elif len(argv) > 1:
-            if not argv[1].isdigit():
-                print(usage_text)
-                log_control.debug("Invalid argument.")
-                raise ValueError("Invalid argument.")
-            window = WordleUI(int(argv[1]))
-            log_control.info(f"argv[1]: {argv[1]}, p_rows = {DEFAULT_NUM_ROWS}")
-        else:
-            window = WordleUI()
-            log_control.debug("No command line arguments.")
+        strict_mode, num_letters, num_rows = get_args(argv[1:])
+        window = WordleUI(num_letters, num_rows, strict_mode)
         app.exec()
     except KeyboardInterrupt as mki:
         log_control.exception(mki)
