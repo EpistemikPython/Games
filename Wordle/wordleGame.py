@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.11+"
 __created__ = "2026-07-05"
-__updated__ = "2026-09-28"
+__updated__ = "2026-10-23"
 
 import random
 from argparse import ArgumentParser
@@ -47,6 +47,7 @@ LARGE_FONT = "font-size: 24pt;"
 XLARGE_FONT = "font-size: 36pt;"
 FONT_BOLD   = "font-weight: bold;"
 INPUT_COLOR = "linen" # "rgb(241, 241, 241)"
+OVERRIDE_COLOR = "sienna"
 
 BOX_FRAME_STYLE = QFrame.Shape.Box | QFrame.Shadow.Raised
 GUESS_BASIC_STYLESHEET  = f"{XLARGE_FONT}; color: blue;  background: white"
@@ -56,10 +57,11 @@ GUESS_ABSENT_STYLESHEET = f"{XLARGE_FONT}; color: white; background: gray"
 RESULT_BASIC_STYLESHEET  = f"{FONT_BOLD} {LARGE_FONT} color: black"
 RESULT_OCCUR_STYLESHEET  = f"{FONT_BOLD} {LARGE_FONT} color: green"
 RESULT_ABSENT_STYLESHEET = f"{FONT_BOLD} {LARGE_FONT} color: red"
-INFOBOX_STYLESHEET = f"{MEDIUM_FONT} color:deeppink; background:cyan"
-MSGBOX_STYLESHEET  = f"{MEDIUM_FONT} color:purple; background:lemonchiffon"
+INFOBOX_STYLESHEET = f"{MEDIUM_FONT} color: deeppink; background: cyan"
+MSGBOX_STYLESHEET  = f"{MEDIUM_FONT} color: purple; background: lemonchiffon"
 INPUTBOX_STYLESHEET = f"{SMALL_FONT} color: red; background: white" if WORDLE_DEBUG \
                       else f"{SMALL_FONT} color: {INPUT_COLOR}; background: {INPUT_COLOR}"
+OVERRIDE_STYLESHEET = f"{SMALL_FONT} color: {OVERRIDE_COLOR}; background: {OVERRIDE_COLOR}"
 
 # noinspection PyAttributeOutsideInit
 class WordleUI(QMainWindow):
@@ -68,7 +70,7 @@ class WordleUI(QMainWindow):
         super().__init__()
         self.setWindowTitle("My Wordle App")
         # pixels: dx from left, dy from top, width, height
-        self.setGeometry(600, 110, 720, 840)
+        self.setGeometry(600, 120, 720, 880)
 
         word_len = len(DEBUG_TARGET) if WORDLE_DEBUG else p_len
         num_rows = MAX_NUM_ROWS if WORDLE_DEBUG else p_rows
@@ -182,9 +184,11 @@ class WordleUI(QMainWindow):
         self.lgr.debug(f"QMouseEvent: {p_event}.")
         if self.override:
             self.override = False
+            self.input_box.setStyleSheet(INPUTBOX_STYLESHEET)
             self.lgr.info("Override unset!")
             return
         self.override = True
+        self.input_box.setStyleSheet(OVERRIDE_STYLESHEET)
         self.lgr.info("Override is set!")
         # call standard behavior if needed
 
@@ -407,6 +411,7 @@ class WordleUI(QMainWindow):
         if self.override: # use then unset
             self.ge.current_words.append(self.current_guess)
             self.lgr.info(f"Added '{self.current_guess}' to acceptable words.")
+            self.input_box.setStyleSheet(INPUTBOX_STYLESHEET)
             self.override = False
         if self.ge.check_guess(self.current_guess, self.active_row):
             self.mark_current_guess()
@@ -500,7 +505,15 @@ class WordleUI(QMainWindow):
 
     def new_word_inquiry(self):
         """Evaluate if the user wants a new secret word."""
-        confirm_box, continue_button, new_word_button = self.create_new_word_msgbox()
+        confirm_box = QMessageBox()
+        confirm_box.setIcon(QMessageBox.Icon.Question)
+        confirm_box.setStyleSheet(MEDIUM_FONT)
+        confirm_box.setText("Are you SURE you want to END this game and get a NEW word?")
+        continue_button = confirm_box.addButton("No! >> Continue with this word...", QMessageBox.ButtonRole.ActionRole)
+        continue_button.setStyleSheet("QPushButton:focus {background: chartreuse}")
+        new_word_button = confirm_box.addButton("Yes >> Get a NEW word!", QMessageBox.ButtonRole.ActionRole)
+        new_word_button.setStyleSheet("QPushButton:focus {background: MediumVioletRed}")
+        confirm_box.setDefaultButton(continue_button if self.active else new_word_button)
         confirm_box.exec()
         if confirm_box.clickedButton() == continue_button:
             self.lgr.info("Continuing this game.")
@@ -510,7 +523,15 @@ class WordleUI(QMainWindow):
 
     def exit_inquiry(self):
         """Evaluate if the user wants to exit the app."""
-        confirm_box, continue_button, quit_button = self.create_exit_msgbox()
+        confirm_box = QMessageBox()
+        confirm_box.setIcon(QMessageBox.Icon.Question)
+        confirm_box.setStyleSheet(MEDIUM_FONT)
+        confirm_box.setText("Are you SURE you want to QUIT the app?")
+        continue_button = confirm_box.addButton("No! >> Continue this game...", QMessageBox.ButtonRole.ActionRole)
+        continue_button.setStyleSheet("QPushButton:focus {background: chartreuse}")
+        quit_button = confirm_box.addButton("Yes >> QUIT the app.", QMessageBox.ButtonRole.ActionRole)
+        quit_button.setStyleSheet("QPushButton:focus {background: red}")
+        confirm_box.setDefaultButton(continue_button if self.active else quit_button)
         confirm_box.exec()
         if confirm_box.clickedButton() == continue_button:
             self.lgr.info("Continuing the game.")
@@ -520,7 +541,15 @@ class WordleUI(QMainWindow):
 
     def mode_inquiry(self):
         """Evaluate if the user wants strict or regular mode."""
-        confirm_box, strict_button, regular_button = self.create_mode_msgbox()
+        confirm_box = QMessageBox()
+        confirm_box.setIcon(QMessageBox.Icon.Question)
+        confirm_box.setStyleSheet(MEDIUM_FONT)
+        confirm_box.setText("In 'strict' mode any previous green or yellow letter guesses MUST be used in subsequent guesses.")
+        strict_button = confirm_box.addButton("Set STRICT mode.", QMessageBox.ButtonRole.ActionRole)
+        strict_button.setStyleSheet("QPushButton:focus {background: violet}") # does NOT work if try to set !focus too...
+        regular_button = confirm_box.addButton("Set REGULAR mode.", QMessageBox.ButtonRole.ActionRole)
+        regular_button.setStyleSheet("QPushButton:focus {background: paleturquoise}")
+        confirm_box.setDefaultButton(strict_button if self.ge.strict_mode else regular_button)
         confirm_box.exec()
         if confirm_box.clickedButton() == strict_button:
             self.ge.strict_mode = True
@@ -539,45 +568,6 @@ class WordleUI(QMainWindow):
         infobox.setText(self.ge.get_instructions())
         infobox.setMinimumWidth(720) # DOES NOTHING... ?!
         infobox.exec()
-
-    def create_new_word_msgbox(self):
-        """Create a QMessageBox to ask about getting a new secret word."""
-        confirm_box = QMessageBox()
-        confirm_box.setIcon(QMessageBox.Icon.Question)
-        confirm_box.setStyleSheet(MEDIUM_FONT)
-        confirm_box.setText("Are you SURE you want to END this game and get a NEW word?")
-        continue_button = confirm_box.addButton("No! >> Continue with this word...", QMessageBox.ButtonRole.ActionRole)
-        continue_button.setStyleSheet("QPushButton:focus {background: chartreuse}")
-        new_word_button = confirm_box.addButton("Yes >> Get a NEW word!", QMessageBox.ButtonRole.ActionRole)
-        new_word_button.setStyleSheet("QPushButton:focus {background: MediumVioletRed}")
-        confirm_box.setDefaultButton(continue_button if self.active else new_word_button)
-        return confirm_box, continue_button, new_word_button
-
-    def create_exit_msgbox(self):
-        """Create a QMessageBox to ask about exiting the app."""
-        confirm_box = QMessageBox()
-        confirm_box.setIcon(QMessageBox.Icon.Question)
-        confirm_box.setStyleSheet(MEDIUM_FONT)
-        confirm_box.setText("Are you SURE you want to QUIT the app?")
-        continue_button = confirm_box.addButton("No! >> Continue this game...", QMessageBox.ButtonRole.ActionRole)
-        continue_button.setStyleSheet("QPushButton:focus {background: chartreuse}")
-        quit_button = confirm_box.addButton("Yes >> QUIT the app.", QMessageBox.ButtonRole.ActionRole)
-        quit_button.setStyleSheet("QPushButton:focus {background: red}")
-        confirm_box.setDefaultButton(continue_button if self.active else quit_button)
-        return confirm_box, continue_button, quit_button
-
-    def create_mode_msgbox(self):
-        """Create a QMessageBox to ask about using strict or regular mode."""
-        confirm_box = QMessageBox()
-        confirm_box.setIcon(QMessageBox.Icon.Question)
-        confirm_box.setStyleSheet(MEDIUM_FONT)
-        confirm_box.setText("In 'strict' mode any previous green or yellow letter guesses MUST be used in subsequent guesses.")
-        strict_button = confirm_box.addButton("Set STRICT mode.", QMessageBox.ButtonRole.ActionRole)
-        strict_button.setStyleSheet("QPushButton:focus {background: violet}") # does NOT work if try to set !focus too...
-        regular_button = confirm_box.addButton("Set REGULAR mode.", QMessageBox.ButtonRole.ActionRole)
-        regular_button.setStyleSheet("QPushButton:focus {background: paleturquoise}")
-        confirm_box.setDefaultButton(strict_button if self.ge.strict_mode else regular_button)
-        return confirm_box, strict_button, regular_button
 # END class WordleUI
 
 # noinspection PyAttributeOutsideInit
