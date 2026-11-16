@@ -10,7 +10,7 @@ __author_name__    = "Mark Sattolo"
 __author_email__   = "epistemik@gmail.com"
 __python_version__ = "3.11+"
 __created__ = "2025-08-18"
-__updated__ = "2026-08-25"
+__updated__ = "2026-11-15"
 
 from enum import IntEnum
 from sys import argv, path
@@ -74,11 +74,11 @@ INFO_TEXT = ("   How to Play the Game:\n"
              "8) Pangrams are words that use ALL seven letters -- and earn DOUBLE the regular points!\n\n"
              "9) Exit the game when you are ready and your game information will be saved to a JSON file.")
 
-def display_info(p_font:str = SMALL_FONT, p_text:str = INFO_TEXT):
+def display_info():
     infobox = QMessageBox()
     infobox.setIcon(QMessageBox.Icon.Information)
-    infobox.setStyleSheet(p_font)
-    infobox.setText(p_text)
+    infobox.setStyleSheet(SMALL_FONT)
+    infobox.setText(INFO_TEXT)
     infobox.setMinimumWidth(1200) # DOES NOTHING... ?!
     infobox.setFixedWidth(960) # DOES NOTHING... ?!
     infobox.exec()
@@ -98,7 +98,7 @@ class SpellingbeeUI(QMainWindow):
         super().__init__()
         self.setWindowTitle("My SpellingBee App")
         # pixels: dx from left, dx from top, width, height
-        self.setGeometry(520, 64, 720, 960)
+        self.setGeometry(600, 81, 720, 960)
 
         self.lgr = log_control.get_logger()
         self.lgr.log(DEFAULT_LOG_LEVEL, f"{self.windowTitle()} runtime = {get_current_time()}")
@@ -147,7 +147,7 @@ class SpellingbeeUI(QMainWindow):
         self.lock_count = 0
 
     def close(self, /):
-        self.ge.save_record()
+        self.ge.save_record(self.run_secs)
         super().close()
 
     def create_game_section(self):
@@ -358,7 +358,7 @@ class SpellingbeeUI(QMainWindow):
             self.lgr.info("Continue the game...")
         elif confirm_box.clickedButton() == new_game_button:
             self.lgr.info("Exit and START a new game.")
-            self.ge.save_record()
+            self.ge.save_record(self.run_secs)
             # new game
             self.reset()
 
@@ -650,18 +650,21 @@ class SpellingbeeGameEngine:
                 results.append(word)
         return results
 
-    def save_record(self):
-        # save all important information from this game
+    def save_record(self, p_secs:int) -> str:
+        """Save all important information from this game."""
         if not self.saved and self.good_guesses:
             self.good_guesses.sort()
             game_record = {"TARGET WORD":self.current_target, "REQUIRED LETTER":self.required_letter, "POINTS EARNED":self.point_total,
-                           "MAX POSSIBLE POINTS":self.maximum_points, "FINAL RATING":self.get_current_level(),
+                           "MAX POSSIBLE POINTS":self.maximum_points, "FINAL RATING":self.get_current_level(), "TIME": p_secs,
+                           "NUMBER of VALID GUESSES":len(self.good_guesses), "TOTAL POSSIBLE WORDS":self.total_num_answers,
                            "PANGRAM GUESSES":self.pangram_guesses, "GOOD GUESSES":self.good_guesses,
                            "MISSED ANSWERS":self.missed_answers(), "BAD LETTER GUESSES":self.bad_letter_guesses,
                            "BAD WORD GUESSES":self.bad_word_guesses, "COMPLETE ANSWER LIST":self.answer_list}
             grfile = save_to_json(f"SpellbeeRecord_{self.required_letter}_{self.current_target}", game_record)
             self.lgr.info(f"Saved game record as: {grfile}")
             self.saved = True
+            return grfile
+        return "No good guesses."
 # END class SpellingbeeGameEngine
 
 
